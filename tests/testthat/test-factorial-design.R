@@ -46,13 +46,14 @@ test_that("catalog_entries finds fractions and skips full factorials", {
   expect_false(is.unsorted(rev(resolutions)))
 })
 
-test_that("code_to_word reads a Yates column code", {
-  expect_equal(code_to_word(7, LETTERS[1:4]), "ABC")
-  expect_equal(code_to_word(1, LETTERS[1:4]), "A")
-  expect_equal(code_to_word(8, LETTERS[1:4]), "D")
+test_that("generators come from DoE.base rather than decoded Yates codes", {
+  expect_equal(
+    DoE.base::generators("6-2.1", select.catlg = FrF2::catlg)[[1]],
+    c("E=ABC", "F=ABD")
+  )
 })
 
-test_that("a full factorial has every combination and no defining relation", {
+test_that("a full factorial has every combination and aliases nothing", {
   design <- factorial_design(k = 3, runs = 8)
   expect_equal(nrow(design$table), 8)
   expect_equal(design$notes, character())
@@ -88,43 +89,57 @@ test_that("default names cross from letters to names0 past the alphabet", {
   expect_false(any(big %in% LETTERS))
 })
 
-test_that("the alias notation stays canonical when factors are renamed", {
+test_that("renaming factors adds a legend but keeps the alias letters", {
+  plain <- factorial_design(k = 6, runs = 16)
   renamed <- factorial_design(
     k = 6,
     runs = 16,
     factor_names = parse_factor_names("Temp, Pressure", 6)
   )
   expect_equal(names(renamed$table)[1:2], c("Temp", "Pressure"))
-  # Renaming a factor must not leak into the defining relation.
-  expect_equal(renamed$notes, factorial_design(k = 6, runs = 16)$notes)
-  expect_match(renamed$notes, "^Defining relation: I = [A-Z= ]+$")
+  # The confounding itself stays written in FrF2's letters, unchanged ...
+  confounding <- function(x) grep("^Two-factor", x, value = TRUE)
+  expect_equal(confounding(renamed$notes), confounding(plain$notes))
+  # ... with a legend added that maps those letters onto the new names. The
+  # legend is absent when nothing has been renamed, since it would be identity.
+  expect_match(renamed$notes[[1]], "^Factors: A=Temp, B=Pressure$")
+  expect_length(grep("^Factors:", plain$notes), 0)
 })
 
-test_that("a large design does not enumerate its defining relation", {
-  # 2^p - 1 words for p generators: 30 factors in 64 runs has 24 generators and
-  # 16.7 million words, which hangs the app if it is actually derived.
+test_that("a large design reports aliasing without enumerating words", {
+  # This design has 53 generators. Deriving its defining relation here would
+  # mean 2^53 words and would hang; FrF2's alias classes are bounded by the
+  # run count instead, so the note is both cheap and complete.
   elapsed <- system.time(design <- factorial_design(k = 60, runs = 128))[["elapsed"]]
   expect_lt(elapsed, 10)
-  expect_match(design$notes, "Defining relation not shown")
-  expect_match(design$notes, "53 generators")
+  expect_length(grep("^Two-factor interactions aliased:", design$notes), 1)
 })
 
-test_that("relation_note derives the relation only below the generator limit", {
-  small <- Filter(function(e) e$nfac == 6 && e$nruns == 16, FrF2::catlg)[[1]]
-  large <- Filter(function(e) e$nfac == 30 && e$nruns == 64, FrF2::catlg)[[1]]
-  expect_lte(length(small$gen), MAX_RELATION_GENERATORS)
-  expect_gt(length(large$gen), MAX_RELATION_GENERATORS)
+test_that("alias notes are read from FrF2, at every design size", {
   expect_snapshot({
-    relation_note(small, 6, 16)
-    relation_note(large, 30, 64)
+    factorial_design(k = 6, runs = 16)$notes
+    # Resolution III aliases main effects, not just two-factor interactions.
+    factorial_design(k = 7, runs = 8)$notes
+    # A full factorial aliases nothing.
+    factorial_design(k = 3, runs = 8)$notes
   })
 })
 
+test_that("a renamed factor appears in the alias legend", {
+  renamed <- factorial_design(
+    k = 6,
+    runs = 16,
+    factor_names = parse_factor_names("Temp, Pressure", 6)
+  )
+  expect_snapshot(renamed$notes)
+})
+
 test_that("describe_entry shortens a long generator list", {
-  large <- Filter(function(e) e$nfac == 30 && e$nruns == 64, FrF2::catlg)[[1]]
-  expect_match(describe_entry(large, 30, 64), "\\(24 generators\\)")
-  small <- Filter(function(e) e$nfac == 6 && e$nruns == 16, FrF2::catlg)[[1]]
-  expect_no_match(describe_entry(small, 6, 16), "generators\\)")
+  large <- catalog_entries(30, 64)
+  expect_match(describe_entry(names(large)[1], large[[1]]), "\\(24 generators\\)")
+  small <- catalog_entries(6, 16)
+  expect_no_match(describe_entry(names(small)[1], small[[1]]), "generators\\)")
+  expect_snapshot(describe_entry(names(small)[1], small[[1]]))
 })
 
 test_that("center points are appended as zero rows and counted in the title", {

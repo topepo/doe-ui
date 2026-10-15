@@ -236,7 +236,7 @@ The table renders every row at once (`pagination = FALSE`). Bounded at 256 runs 
 
 **The table data is no longer reformatted.** `format_coded()` is gone, and with it the `"+1"` / `"0"` character conversion and the `round(values, 4)` branch. `display_table()` now only applies `signif()`, so values stay numeric and the CSV download continues to write the untouched table at full precision.
 
-Three significant figures is `signif()` rather than reactable's `colFormat(digits = )`, which counts *decimal* places — it would render a coded `-1` as `-1.000` and could not shorten `1234.567` to `1230`. Factor columns are left-justified through a per-column `colDef(align = "left")`; the two order columns keep the centred default so they still read as row labels.
+Three significant figures is `signif()` rather than reactable's `colFormat(digits = )`, which counts *decimal* places — it would render a coded `-1` as `-1.000` and could not shorten `1234.567` to `1230`. Factor columns are right-justified through a per-column `colDef(align = "right")`; the two order columns keep the centred default so they still read as row labels.
 
 **`coded` was removed from `new_design()`.** Its only consumer was the formatting branch above. It is noted in the file as something to add back if anything genuinely needs to tell coded levels from real quantities — the mixture designs might, when they return.
 
@@ -266,3 +266,21 @@ Only the first two are feasible. At the old cap of 8 factors this was unreachabl
 `describe_entry()` got the same treatment, showing at most six generators before `, ... (24 generators)`, since a fifty-generator radio label is unreadable.
 
 95 tests pass, no skips.
+
+## Follow-up: aliasing read from FrF2 (closes #1)
+
+The defining relation was being computed in app code — `defining_relation()` XORed every subset of the design's generators to build the group. That was the same "built locally" problem as the Paley matrix, carried over intact from the old `designs.R` and not recognised as one while porting.
+
+FrF2 attaches the alias structure to every design it builds, under `attr(design, "design.info")$aliased`, with `$legend`, `$main` and `$fi2`. No internal function, no model fit, no catalog decoding. It is cheap at every size because it reports alias classes of two-factor interactions — bounded by the run count — rather than enumerating words: 0.11s for the 60-factor design whose defining relation would be 9e15 words.
+
+So `MAX_RELATION_GENERATORS` is gone. There is no cutoff now, and every design the app offers shows its aliasing. It is also the more useful report — `AB=CE=DF` says directly what is confounded with what. Resolution III designs report `$main` instead, e.g. `A=BD=CE=FG, ...`.
+
+Removed along with it: `relation_note()`, and `code_to_word()`, which decoded Yates column codes into letters. `DoE.base::generators(name, select.catlg = FrF2::catlg)` returns `"E=ABC" "F=ABD"` ready-made. Note the explicit `select.catlg`: it defaults to a bare `catlg`, which is only on the search path when FrF2 has been attached, and this app only uses qualified calls.
+
+`factor_names` is now passed into `FrF2::FrF2()` rather than applied to the table afterwards, so the alias legend is expressed in the names in use. Renaming two factors gives `Factors: A=Temp, B=Pressure` beside the unchanged confounding; the legend is suppressed when it would be identity.
+
+### Still open
+
+Past 26 factors FrF2 labels with lowercase (`Aa=BZ=Cc=De=...`) and past 52 with `F1:F17=...`, while our columns go `A ... Z` then `x01, x02, ...`. The legend note covers the mismatch but truncates at 12 entries, so a 30-factor design reads `Factors: A=x01, B=x02, ... (30 in all)`. Adopting FrF2's own factor names as the defaults would remove the mismatch, at the cost of the letters-then-names0 rule.
+
+93 tests pass, no skips.

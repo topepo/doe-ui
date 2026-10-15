@@ -18,7 +18,7 @@
       32 runs (2^(6-1) fraction)   64 runs (full factorial) 
                               32                         64 
 
-# a full factorial has every combination and no defining relation
+# a full factorial has every combination and aliases nothing
 
     Code
       design
@@ -40,7 +40,7 @@
       factorial_design(k = 6, runs = 16)
     Output
       2^(6-2) fractional factorial, resolution IV – 6 factors, 16 runs
-        Defining relation: I = ABCE = ABDF = CDEF
+        Two-factor interactions aliased: AB=CE=DF, AC=BE, AD=BF, AE=BC, AF=BD, CD=EF, CF=DE
           A  B  C  D  E  F
       1  -1 -1 -1 -1 -1 -1
       2   1 -1 -1 -1  1  1
@@ -59,16 +59,35 @@
       15 -1  1  1  1 -1 -1
       16  1  1  1  1  1  1
 
-# relation_note derives the relation only below the generator limit
+# alias notes are read from FrF2, at every design size
 
     Code
-      relation_note(small, 6, 16)
+      factorial_design(k = 6, runs = 16)$notes
     Output
-      [1] "Defining relation: I = ABCE = ABDF = CDEF"
+      [1] "Two-factor interactions aliased: AB=CE=DF, AC=BE, AD=BF, AE=BC, AF=BD, CD=EF, CF=DE"
     Code
-      relation_note(large, 30, 64)
+      factorial_design(k = 7, runs = 8)$notes
     Output
-      [1] "24 generators. Defining relation not shown; it has 1.68e+07 words. Shortest words: 945 of length 4."
+      [1] "Main effects aliased: A=BD=CE=FG, B=AD=CF=EG, C=AE=BF=DG, D=AB=CG=EF, E=AC=BG=DF, F=AG=BC=DE, G=AF=BE=CD"
+    Code
+      factorial_design(k = 3, runs = 8)$notes
+    Output
+      character(0)
+
+# a renamed factor appears in the alias legend
+
+    Code
+      renamed$notes
+    Output
+      [1] "Factors: A=Temp, B=Pressure"                                                        
+      [2] "Two-factor interactions aliased: AB=CE=DF, AC=BE, AD=BF, AE=BC, AF=BD, CD=EF, CF=DE"
+
+# describe_entry shortens a long generator list
+
+    Code
+      describe_entry(names(small)[1], small[[1]])
+    Output
+      [1] "Resolution IV: E=ABC, F=ABD (3 words of length 4)"
 
 # center points are appended as zero rows and counted in the title
 

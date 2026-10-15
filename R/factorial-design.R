@@ -57,13 +57,6 @@ run_choices <- function(k) {
   stats::setNames(runs, labels)
 }
 
-# A Yates column code carries one bit per factor (A = 1, B = 2, C = 4, ...), so
-# 7 has the first three bits set and reads "ABC".
-code_to_word <- function(code, labels) {
-  bits <- bitwAnd(as.integer(code), bitwShiftL(1L, seq_along(labels) - 1L)) > 0
-  paste(labels[bits], collapse = "")
-}
-
 # The catalog designs of this size, best first: highest resolution, then the
 # fewest words of that shortest length. A full factorial is not in the catalog,
 # so this is empty for one.
@@ -78,14 +71,15 @@ catalog_entries <- function(k, runs) {
 }
 
 # One line describing a catalog design, for the "Choose a design" radio.
-describe_entry <- function(entry, k, runs, max_generators = 6) {
-  labels <- factor_labels(k)
-  base <- log2(runs)
-  words <- vapply(entry$gen, code_to_word, character(1), labels = labels)
-  generators <- sprintf("%s = %s", labels[base + seq_along(words)], words)
+# Generators come from DoE.base, already written as "E=ABC", rather than being
+# decoded from the catalog's Yates column codes here.
+describe_entry <- function(name, entry, max_generators = 6) {
+  # select.catlg is passed explicitly: generators() defaults it to a bare
+  # `catlg`, which is only on the search path if FrF2 has been attached, and
+  # this app only ever uses FrF2:: qualified calls.
+  generators <- DoE.base::generators(name, select.catlg = FrF2::catlg)[[1]]
   # A large design can have fifty-odd generators, which makes an unreadable
-  # radio label. The resolution and word count are what distinguishes the
-  # choices anyway.
+  # radio label. The resolution and word count are what tell the choices apart.
   shown <- paste(utils::head(generators, max_generators), collapse = ", ")
   if (length(generators) > max_generators) {
     shown <- sprintf("%s, ... (%d generators)", shown, length(generators))
@@ -101,51 +95,46 @@ describe_entry <- function(entry, k, runs, max_generators = 6) {
   )
 }
 
-# Deriving the defining relation means multiplying every combination of the
-# design's generators, so a design with p generators has 2^p - 1 words. That is
-# nothing for the two or three generators a small design has, and hopeless for
-# a large one: 30 factors in 64 runs has 24 generators and 16.7 million words,
-# and 60 factors in 128 runs has 53 and 9e15. Both would hang the app.
+# The alias structure FrF2 attaches to every design it builds, under
+# attr(design, "design.info")$aliased. Reported, not derived.
 #
-# This was unreachable while the factor count was capped at 8. It is reachable
-# now that the range comes from the catalog, so past this many generators the
-# note reports what the catalog already knows instead of deriving anything.
-MAX_RELATION_GENERATORS <- 12L
-
-# The note shown under a fractional design's title.
-relation_note <- function(entry, k, runs) {
-  generators <- length(entry$gen)
-  if (generators > MAX_RELATION_GENERATORS) {
-    return(sprintf(
-      "%d generators. Defining relation not shown; it has %.3g words. Shortest words: %d of length %d.",
-      generators,
-      2^generators - 1,
-      entry$WLP[entry$res],
-      entry$res
-    ))
+# This used to be computed here, by multiplying every combination of the
+# design's generators to get the defining relation. That is 2^p - 1 words for
+# p generators: fine for the two a small design has, hopeless for the 24 in a
+# 30-factor design (16.7 million) or the 53 in a 60-factor one (9e15). FrF2
+# instead reports alias classes of two-factor interactions, which is bounded
+# by the run count — 0.11s for that 60-factor design — and is what an
+# experimenter wants to know anyway.
+alias_notes <- function(design) {
+  aliased <- attr(design, "design.info")$aliased
+  # A full factorial has no catalog entry and nothing aliased.
+  if (is.null(aliased)) {
+    return(character())
   }
-  relation <- defining_relation(entry, k, runs)
-  paste0(
-    "Defining relation: I = ",
-    paste(utils::head(relation, 15), collapse = " = "),
-    if (length(relation) > 15) " = ..." else ""
-  )
-}
+  notes <- character()
 
-# The words of a catalog design's defining relation, shortest first, built by
-# multiplying every combination of its generators. Guard with
-# MAX_RELATION_GENERATORS before calling: the cost is exponential.
-defining_relation <- function(entry, k, runs) {
-  labels <- factor_labels(k)
-  added <- bitwShiftL(1L, log2(runs) + seq_along(entry$gen) - 1L)
-  words <- bitwOr(as.integer(entry$gen), added)
-  products <- vapply(
-    seq_len(2^length(words) - 1),
-    function(i) Reduce(bitwXor, words[as.logical(intToBits(i))[seq_along(words)]]),
-    integer(1)
-  )
-  text <- vapply(products, code_to_word, character(1), labels = labels)
-  text[order(nchar(text), text)]
+  # The legend maps FrF2's own letters onto the factor names in use. It is
+  # identity until a factor has been renamed, and noise until then.
+  letters_used <- sub("=.*$", "", aliased$legend)
+  names_used <- sub("^[^=]*=", "", aliased$legend)
+  renamed <- aliased$legend[letters_used != names_used]
+  if (length(renamed) > 0) {
+    notes <- c(notes, paste0("Factors: ", format_choices(renamed)))
+  }
+
+  if (length(aliased$main) > 0) {
+    notes <- c(
+      notes,
+      paste0("Main effects aliased: ", format_choices(aliased$main))
+    )
+  }
+  if (length(aliased$fi2) > 0) {
+    notes <- c(
+      notes,
+      paste0("Two-factor interactions aliased: ", format_choices(aliased$fi2))
+    )
+  }
+  notes
 }
 
 # A two-level factorial design.
@@ -181,32 +170,39 @@ factorial_design <- function(k,
     sprintf("Give %d factor names, not %d.", k, length(factor_names))
   )
 
+  # factor.names is passed to FrF2 rather than applied to the table
+  # afterwards, so that the alias structure it attaches is expressed in the
+  # names actually in use — its legend reads "A=Temp" instead of "A=A".
   entries <- catalog_entries(k, runs)
   if (length(entries) == 0) {
-    design <- suppressMessages(
-      FrF2::FrF2(nruns = runs, nfactors = k, randomize = FALSE)
-    )
+    design <- suppressMessages(FrF2::FrF2(
+      nruns = runs,
+      nfactors = k,
+      randomize = FALSE,
+      factor.names = factor_names
+    ))
     description <- sprintf("2^%d full factorial", k)
-    notes <- character()
   } else {
     alternative <- min(max(1, alternative), length(entries))
     entry <- entries[[alternative]]
-    design <- suppressMessages(
-      FrF2::FrF2(design = names(entries)[alternative], randomize = FALSE)
-    )
+    design <- suppressMessages(FrF2::FrF2(
+      design = names(entries)[alternative],
+      randomize = FALSE,
+      factor.names = factor_names
+    ))
     description <- sprintf(
       "2^(%d-%d) fractional factorial, resolution %s",
       k,
       k - log2(runs),
       as.character(utils::as.roman(entry$res))
     )
-    notes <- relation_note(entry, k, runs)
   }
 
   table <- as.data.frame(DoE.base::desnum(design))
   table[] <- lapply(table, as.numeric)
   names(table) <- factor_names
   table <- append_center_points(table, center)
+  notes <- alias_notes(design)
 
   new_design(
     table,

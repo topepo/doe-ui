@@ -69,11 +69,9 @@ factorial_server <- function(id) {
         session$ns("alternative"),
         "Choose a design",
         choiceNames = unname(vapply(
-          found,
-          describe_entry,
-          character(1),
-          k = as.integer(input$k),
-          runs = runs()
+          names(found),
+          function(name) describe_entry(name, found[[name]]),
+          character(1)
         )),
         choiceValues = seq_along(found),
         width = "100%"

@@ -45,10 +45,11 @@ app_server <- function(input, output, session) {
     factors <- setdiff(names(table), ORDER_COLUMNS)
     reactable::reactable(
       table,
-      # Factor columns left-justified; the order columns keep the centred
-      # default so they read as the row labels they are.
+      # Factor columns right-justified so digits line up on the units place;
+      # the order columns keep the centred default so they still read as the
+      # row labels they are.
       columns = stats::setNames(
-        lapply(factors, function(...) reactable::colDef(align = "left")),
+        lapply(factors, function(...) reactable::colDef(align = "right")),
         factors
       ),
       # reactable paginates at 10 rows by default, which would cut a 16-run
