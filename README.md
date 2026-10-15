@@ -39,6 +39,18 @@ One design is one Shiny module whose server returns a reactive yielding a `doe_d
 2. Write `R/<name>-module.R` with `<name>_ui(id)` and `<name>_server(id)`.
 3. Add one entry to `design_registry()` in `R/registry.R`.
 
+### The packages are the source of truth
+
+Almost all computation happens in the R package implementing the method. This app calls the package, reports what it returns, and formats the result. It does not reimplement, re-derive, or second-guess it — not the designs, not their properties, and not the parameter values they accept.
+
+This is not a style preference. Three things in earlier versions of this code looked perfectly reasonable and were all wrong:
+
+- A definitive screening design built by hand from a Paley conference matrix instead of calling a package.
+- The alias structure derived by multiplying every subset of a design's generators — `2^p` words for `p` generators, which hung the app at 53 generators. FrF2 attaches the whole thing to the design under `attr(design, "design.info")$aliased`, bounded by the run count, in 0.11s.
+- Available run counts computed as a span of powers of two, when `FrF2::catlg` has irregular gaps — 34 factors has a 2048-run design but no 1024-run one, and asking FrF2 for the missing size errors rather than returning nothing.
+
+Before writing any statistical computation, check whether the package already exposes it. It is easy to miss, because it may arrive as an attribute on an object the package already returned rather than as a function you have to call.
+
 ### Limits and error messages
 
 Which parameter values a design accepts is read from its package, not written down in app code. `R/factorial-design.R` derives its factor and run choices from `FrF2::catlg`, so the app follows whichever FrF2 version is installed. This matters because catalogued designs have gaps rather than clean ranges: FrF2 has a 2048-run design for 34 factors but no 1024-run one, and asking it for a size it lacks errors rather than returning nothing.

@@ -47,11 +47,8 @@ test_that("randomizing permutes the run order and nothing else", {
   expect_equal(randomized$table[c("A", "B")], design$table)
 })
 
-test_that("append_center_points adds zero rows and center_point_text agrees", {
-  table <- data.frame(A = c(-1, 1), B = c(-1, 1))
-  expect_equal(nrow(append_center_points(table, 0)), 2)
+test_that("center_point_text pluralises and counts the total", {
   expect_snapshot({
-    append_center_points(table, 2)
     center_point_text(0, 2)
     center_point_text(1, 3)
     center_point_text(3, 5)

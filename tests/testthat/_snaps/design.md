@@ -38,16 +38,8 @@
       1              1         1 -1 -1
       2              2         2  1 -1
 
-# append_center_points adds zero rows and center_point_text agrees
+# center_point_text pluralises and counts the total
 
-    Code
-      append_center_points(table, 2)
-    Output
-         A  B
-      1 -1 -1
-      2  1  1
-      3  0  0
-      4  0  0
     Code
       center_point_text(0, 2)
     Output

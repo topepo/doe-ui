@@ -186,3 +186,35 @@ test_that("a long list of choices is shortened", {
     format_choices(1:30)
   })
 })
+
+test_that("center points come from FrF2 and are recorded on the design", {
+  plain <- factorial_design(k = 3, runs = 8)
+  with_centers <- factorial_design(k = 3, runs = 8, center = 2)
+  expect_equal(nrow(with_centers$table), nrow(plain$table) + 2)
+  # Appended at the end, every factor at zero, with randomize = FALSE.
+  expect_true(all(with_centers$table[9:10, ] == 0))
+  expect_equal(with_centers$table[1:8, ], plain$table)
+  expect_snapshot(cat(with_centers$title))
+})
+
+test_that("a fraction takes center points too", {
+  design <- factorial_design(k = 6, runs = 16, center = 5)
+  expect_equal(nrow(design$table), 21)
+  expect_equal(sum(apply(design$table, 1, function(r) all(r == 0))), 5)
+})
+
+test_that("our best-first ordering agrees with FrF2's own choice", {
+  # catalog_entries() sorts by resolution then word count so the app can offer
+  # alternatives, which FrF2 has no exported helper for. This checks the
+  # ordering is the package's policy and not one of our own: the entry we put
+  # first is the one FrF2 picks when asked for a design without naming it.
+  for (spec in list(c(5, 16), c(6, 16), c(8, 32), c(12, 64), c(20, 256))) {
+    ours <- names(catalog_entries(spec[1], spec[2]))[1]
+    chosen <- suppressMessages(FrF2::FrF2(
+      nruns = spec[2],
+      nfactors = spec[1],
+      randomize = FALSE
+    ))
+    expect_equal(ours, names(attr(chosen, "design.info")$catlg.entry))
+  }
+})

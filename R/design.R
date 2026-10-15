@@ -145,20 +145,6 @@ with_run_order <- function(design, randomize) {
   design
 }
 
-# Add `n` center points (every factor at 0) to the end of a coded table.
-append_center_points <- function(table, n) {
-  if (n < 1) {
-    return(table)
-  }
-  centers <- table[rep(1, n), , drop = FALSE]
-  centers[] <- 0
-  combined <- rbind(table, centers)
-  # rbind() derives row names from the originals, which gives duplicates like
-  # "11" and "1.1" once the center rows are copies of row 1.
-  rownames(combined) <- NULL
-  combined
-}
-
 # The center-point clause of a design title, or "" when there are none.
 center_point_text <- function(n, total) {
   if (n < 1) {

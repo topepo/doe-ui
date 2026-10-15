@@ -173,3 +173,10 @@
     Output
       [1] "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, ... (30 in all)"
 
+# center points come from FrF2 and are recorded on the design
+
+    Code
+      cat(with_centers$title)
+    Output
+      2^3 full factorial – 3 factors, 8 runs + 2 center points (10 total)
+

@@ -173,13 +173,18 @@ factorial_design <- function(k,
   # factor.names is passed to FrF2 rather than applied to the table
   # afterwards, so that the alias structure it attaches is expressed in the
   # names actually in use — its legend reads "A=Temp" instead of "A=A".
+  # ncenter is FrF2's own, rather than appending zero rows here. With
+  # randomize = FALSE it puts them at the end, which is what we were doing by
+  # hand; it also records them in design.info, and its center.distribute
+  # argument can spread them through the run order if that is ever wanted.
   entries <- catalog_entries(k, runs)
   if (length(entries) == 0) {
     design <- suppressMessages(FrF2::FrF2(
       nruns = runs,
       nfactors = k,
       randomize = FALSE,
-      factor.names = factor_names
+      factor.names = factor_names,
+      ncenter = center
     ))
     description <- sprintf("2^%d full factorial", k)
   } else {
@@ -188,7 +193,8 @@ factorial_design <- function(k,
     design <- suppressMessages(FrF2::FrF2(
       design = names(entries)[alternative],
       randomize = FALSE,
-      factor.names = factor_names
+      factor.names = factor_names,
+      ncenter = center
     ))
     description <- sprintf(
       "2^(%d-%d) fractional factorial, resolution %s",
@@ -201,7 +207,6 @@ factorial_design <- function(k,
   table <- as.data.frame(DoE.base::desnum(design))
   table[] <- lapply(table, as.numeric)
   names(table) <- factor_names
-  table <- append_center_points(table, center)
   notes <- alias_notes(design)
 
   new_design(
