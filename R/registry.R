@@ -1,0 +1,100 @@
+# Where designs are registered, and the sidebar that picks between them.
+#
+# To add a design: write R/<name>-design.R and R/<name>-module.R, then add one
+# entry below. Nothing else in the app needs to change.
+
+DEFAULT_DESIGN <- "factorial"
+
+# A function rather than a plain list, deliberately. Shiny sources R/ in
+# alphabetical order, so a design file sorting after this one (R/rsm-module.R
+# would) is not yet loaded when this file runs. Resolving the functions when
+# the registry is called instead of when it is defined makes the order
+# irrelevant.
+design_registry <- function() {
+  list(
+    factorial = list(
+      label = "Two-level factorial",
+      family = "Screening designs",
+      ui = factorial_ui,
+      server = factorial_server
+    )
+  )
+}
+
+# Design ids grouped by family, families in the order they first appear.
+design_families <- function(registry = design_registry()) {
+  families <- vapply(registry, function(d) d$family, character(1))
+  split(names(registry), factor(families, levels = unique(families)))
+}
+
+# The picker is one accordion panel per family with a radio group inside each.
+# Exactly one design is selected across the whole app, so choosing in one
+# family clears every other.
+picker_ui <- function(id,
+                      registry = design_registry(),
+                      selected = DEFAULT_DESIGN) {
+  ns <- shiny::NS(id)
+  families <- design_families(registry)
+
+  panels <- lapply(seq_along(families), function(i) {
+    ids <- families[[i]]
+    bslib::accordion_panel(
+      title = names(families)[i],
+      value = names(families)[i],
+      shiny::radioButtons(
+        ns(paste0("family_", i)),
+        label = NULL,
+        choiceNames = unname(vapply(
+          ids,
+          function(x) registry[[x]]$label,
+          character(1)
+        )),
+        choiceValues = ids,
+        # character(0) leaves the group unchecked. NULL would silently select
+        # the first choice, which would mean several families claiming a
+        # selection at once.
+        selected = if (selected %in% ids) selected else character(0)
+      )
+    )
+  })
+
+  open <- names(families)[
+    vapply(families, function(ids) selected %in% ids, logical(1))
+  ]
+
+  # Returned bare, not wrapped in a tagList or div: bslib only renders an
+  # accordion flush against the sidebar when it is an immediate child of it.
+  do.call(
+    bslib::accordion,
+    c(list(id = ns("family"), multiple = FALSE, open = open), panels)
+  )
+}
+
+# Returns a reactive holding the id of the selected design.
+picker_server <- function(id,
+                          registry = design_registry(),
+                          default = DEFAULT_DESIGN) {
+  shiny::moduleServer(id, function(input, output, session) {
+    families <- design_families(registry)
+    inputs <- paste0("family_", seq_along(families))
+    selected <- shiny::reactiveVal(default)
+
+    # lapply(), not a for loop: R does not rebind a loop variable per
+    # iteration, so a for loop here would leave every observer pointing at the
+    # last family.
+    lapply(seq_along(inputs), function(i) {
+      shiny::observeEvent(input[[inputs[i]]], {
+        selected(input[[inputs[i]]])
+        for (other in inputs[-i]) {
+          # This cannot feed back. Clearing a family that is already clear
+          # sends an identical value, which Shiny's client drops before it
+          # reaches the server; the one family that did hold a selection sends
+          # NULL, which ignoreNULL stops before the handler body runs.
+          shiny::updateRadioButtons(session, other, selected = character(0))
+        }
+      }, ignoreNULL = TRUE)
+    })
+
+    selected
+  })
+}
