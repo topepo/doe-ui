@@ -284,3 +284,35 @@ Removed along with it: `relation_note()`, and `code_to_word()`, which decoded Ya
 Past 26 factors FrF2 labels with lowercase (`Aa=BZ=Cc=De=...`) and past 52 with `F1:F17=...`, while our columns go `A ... Z` then `x01, x02, ...`. The legend note covers the mismatch but truncates at 12 entries, so a 30-factor design reads `Factors: A=x01, B=x02, ... (30 in all)`. Adopting FrF2's own factor names as the defaults would remove the mismatch, at the cost of the letters-then-names0 rule.
 
 93 tests pass, no skips.
+
+## Follow-up: center points, blocks and replications from FrF2
+
+Three more computations moved into the package, following the rule that the package is the source of truth.
+
+**Center points.** `append_center_points()` built the rows by hand — copy row one, zero it, `rbind`. FrF2 has `ncenter`. Output is identical in every case checked, because with `randomize = FALSE` FrF2 also appends them at the end, and it records the count in `design.info`. Its `center.distribute` argument can spread center points through the run order instead of clumping them at the end, which is better for detecting drift; not used yet, but now one argument away. Note `ncenter` is **per block**, so the title counts `center * blocks`.
+
+**`blocks` and `replications` exposed,** both defaulting to FrF2's own defaults of 1. `replications` repeats every run; `blocks` adds a block column. Two traps found while wiring them up:
+
+- FrF2's `blocks` is overloaded — a number means how many blocks, but a vector of Yates column numbers is also accepted. An integer `1L` takes the latter branch and fails with `'names' attribute [2] must be the same length as the vector [0]` rather than meaning "unblocked". A double `1` is correct, so `factorial_design()` coerces. There is a test pinning it.
+- Block labels are **not numbers**. With replications FrF2 labels them `1.1`, `2.1` — block and replicate — and with replications alone, `.1`, `.2`. The first version of this coerced the column to numeric and turned `"1.1"` into 1.1, inventing a number that looked like data. The block column now stays character, found by elimination against `factor_names` because `design.info$block.name` is `NULL` when replications alone produced the column.
+
+**Table construction switched from `desnum()` to `as.data.frame(design)`,** which carries FrF2's factor names and a readable block column where `desnum()` contrast-codes it into `Blocks1`. The table is rebuilt as a plain data frame rather than edited in place, so FrF2's `design.info`, `desnum` and `run.order` attributes do not ride along on what the app hands out. A test asserts they are absent.
+
+### Block choices are only structurally derivable
+
+`block_choices(runs)` offers powers of two up to half the run size, which are FrF2's own two stated rules. Whether a *particular* count works is design-specific — FrF2 refuses a blocking that confounds a two-factor interaction, so 4 blocks is fine for some 16-run designs and not for `6-2.1`. That cannot be known without building the design, and probing every candidate was measured at 16s for a 256-run design, far too slow for a dropdown:
+
+| design | runs | candidates | probe time |
+| --- | --- | --- | --- |
+| 6-2.1 | 16 | 3 | 0.06s |
+| 12-6.1 | 64 | 5 | 0.56s |
+| 20-12.1 | 256 | 7 | 15.92s |
+
+So the dropdown offers what is structurally valid and FrF2's own message covers the rest — `no adequate blocked design found with 2fis unconfounded with blocks in design 6-2.1` — which the module already shows in place of the table. `FrF2::block.catlg` was checked as an alternative source and does not help: it is a 30-row table of block generators for full factorials only, not catalogued fractions.
+
+### Audit of what remains computed locally
+
+- `catalog_entries()` filters and sorts `FrF2::catlg`; there is no exported catalog-selection helper, so the filtering is unavoidable. The *ordering* is now pinned by a test showing the entry we put first is the one FrF2 itself picks when asked for a design without naming one, agreeing across all sizes tested.
+- `with_run_order()` generates the run-order permutation with `sample()`. This is deliberate and not a reimplementation: FrF2's `randomize` permutes the design rows, where this keeps rows in standard order and adds a run-order column, which is what keeps generators deterministic and snapshot-testable.
+
+123 tests pass, no skips.

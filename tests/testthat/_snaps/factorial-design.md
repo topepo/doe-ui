@@ -180,3 +180,35 @@
     Output
       2^3 full factorial – 3 factors, 8 runs + 2 center points (10 total)
 
+# block counts follow FrF2's rules and report what is available
+
+    Code
+      factorial_design(k = 3, runs = 8, blocks = 3)
+    Condition
+      Error:
+      ! 3 is not an available block count for 8 runs. Choose one of: 1, 2, 4.
+    Code
+      factorial_design(k = 3, runs = 8, blocks = 16)
+    Condition
+      Error:
+      ! 16 is not an available block count for 8 runs. Choose one of: 1, 2, 4.
+    Code
+      factorial_design(k = 3, runs = 8, replications = 0)
+    Condition
+      Error:
+      ! Replications must be a whole number of at least 1.
+    Code
+      factorial_design(k = 3, runs = 8, blocks = 2, factor_names = c("Blocks", "B",
+        "C"))
+    Condition
+      Error:
+      ! "Blocks" is reserved for the block column; rename that factor.
+
+# a blocking FrF2 will not build reports its own reason
+
+    Code
+      factorial_design(k = 6, runs = 16, blocks = 4)
+    Condition
+      Error in `FrF2::FrF2()`:
+      ! no adequate blocked design found with 2fis unconfounded with blocks in design 6-2.1
+

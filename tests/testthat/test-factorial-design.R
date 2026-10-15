@@ -218,3 +218,67 @@ test_that("our best-first ordering agrees with FrF2's own choice", {
     expect_equal(ours, names(attr(chosen, "design.info")$catlg.entry))
   }
 })
+
+test_that("blocks add a labelled block column", {
+  plain <- factorial_design(k = 3, runs = 8)
+  blocked <- factorial_design(k = 3, runs = 8, blocks = 2)
+  expect_false("Blocks" %in% names(plain$table))
+  expect_equal(names(blocked$table), c("Blocks", "A", "B", "C"))
+  expect_setequal(blocked$table$Blocks, c("1", "2"))
+  expect_match(blocked$title, "2 blocks")
+})
+
+test_that("block labels stay labels and are never coerced to numbers", {
+  # With replications FrF2 labels blocks "1.1", "2.1" -- block and replicate,
+  # not a decimal. Coercing would turn "1.1" into 1.1 and invent a number.
+  design <- factorial_design(k = 3, runs = 8, blocks = 2, replications = 2)
+  expect_type(design$table$Blocks, "character")
+  expect_setequal(design$table$Blocks, c("1.1", "1.2", "2.1", "2.2"))
+})
+
+test_that("blocks = 1 means unblocked, including as an integer", {
+  # FrF2's `blocks` also takes Yates column numbers, and an integer 1L lands in
+  # that branch and errors rather than meaning "one block".
+  expect_equal(factorial_design(k = 3, runs = 8, blocks = 1L)$table,
+               factorial_design(k = 3, runs = 8)$table)
+  expect_equal(factorial_design(k = 3, runs = 8, blocks = 1)$table,
+               factorial_design(k = 3, runs = 8)$table)
+})
+
+test_that("replications repeat every run", {
+  design <- factorial_design(k = 3, runs = 8, replications = 3)
+  expect_equal(nrow(design$table), 24)
+  expect_match(design$title, "3 replications")
+})
+
+test_that("center points are per block, as FrF2 counts them", {
+  design <- factorial_design(k = 3, runs = 8, blocks = 2, center = 2)
+  # Two per block, two blocks, on top of the eight design runs.
+  expect_equal(nrow(design$table), 12)
+  expect_match(design$title, "4 center points")
+})
+
+test_that("the design table carries no FrF2 attributes", {
+  design <- factorial_design(k = 3, runs = 8, blocks = 2)
+  expect_null(attr(design$table, "design.info"))
+  expect_null(attr(design$table, "desnum"))
+  expect_null(attr(design$table, "run.order"))
+  expect_identical(class(design$table), "data.frame")
+})
+
+test_that("block counts follow FrF2's rules and report what is available", {
+  expect_equal(block_choices(8), c(1, 2, 4))
+  expect_equal(block_choices(16), c(1, 2, 4, 8))
+  expect_snapshot(error = TRUE, {
+    factorial_design(k = 3, runs = 8, blocks = 3)
+    factorial_design(k = 3, runs = 8, blocks = 16)
+    factorial_design(k = 3, runs = 8, replications = 0)
+    factorial_design(k = 3, runs = 8, blocks = 2, factor_names = c("Blocks", "B", "C"))
+  })
+})
+
+test_that("a blocking FrF2 will not build reports its own reason", {
+  # Validity is design-specific: 4 blocks is structurally allowed at 16 runs
+  # but confounds a two-factor interaction in this design. FrF2 says so.
+  expect_snapshot(error = TRUE, factorial_design(k = 6, runs = 16, blocks = 4))
+})

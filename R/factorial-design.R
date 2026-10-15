@@ -137,6 +137,20 @@ alias_notes <- function(design) {
   notes
 }
 
+# Block counts FrF2 will consider, by its own two rules: a power of two, and
+# no more blocks than half the run size.
+#
+# Whether a *particular* count works also depends on the design — FrF2 refuses
+# a blocking that would confound a two-factor interaction with blocks, so 4
+# blocks is fine for some 16-run designs and not for 6-2.1. That cannot be
+# known without building the design, and probing every candidate takes 16s for
+# a 256-run design, which is far too slow for a dropdown. So offer what is
+# structurally valid and let FrF2's own message cover the rest; the module
+# shows it in place of the table.
+block_choices <- function(runs) {
+  2^(0:floor(log2(runs / 2)))
+}
+
 # A two-level factorial design.
 #
 #   k            number of factors, within factorial_factor_range
@@ -144,12 +158,18 @@ alias_notes <- function(design) {
 #   alternative  which catalog design to use when several are equivalent, 1
 #                being the best. Ignored for a full factorial; out-of-range
 #                values are moved to the nearest valid one.
-#   center       center points to append
+#   center       center points per block
+#   blocks       number of blocks, one of block_choices(runs)
+#   replications times each run is carried out
 #   factor_names column names, one per factor
+#
+# center, blocks and replications default to FrF2's own defaults.
 factorial_design <- function(k,
                              runs,
                              alternative = 1,
                              center = 0,
+                             blocks = 1,
+                             replications = 1,
                              factor_names = factor_labels(k)) {
   # Checked before the range comparison below, which would otherwise be NA and
   # fail with "missing value where TRUE/FALSE needed" rather than a message.
@@ -166,8 +186,32 @@ factorial_design <- function(k,
   }
   stop_unless(center >= 0, "Center points cannot be negative.")
   stop_unless(
+    replications >= 1 && replications == round(replications),
+    "Replications must be a whole number of at least 1."
+  )
+  available_blocks <- block_choices(runs)
+  if (!blocks %in% available_blocks) {
+    stop_unavailable(
+      blocks,
+      available_blocks,
+      "block count",
+      sprintf("%d runs", runs)
+    )
+  }
+  # as.numeric deliberately. FrF2's `blocks` is overloaded: a number means how
+  # many blocks, but a vector of Yates column numbers is also accepted. An
+  # integer 1L takes the latter branch and fails with "'names' attribute [2]
+  # must be the same length as the vector [0]" instead of meaning "unblocked".
+  # A double 1 means what we want.
+  blocks <- as.numeric(blocks)
+  stop_unless(
     length(factor_names) == k,
     sprintf("Give %d factor names, not %d.", k, length(factor_names))
+  )
+  # FrF2 adds its block column under this name, so a factor cannot take it.
+  stop_unless(
+    blocks == 1 || !"Blocks" %in% factor_names,
+    "\"Blocks\" is reserved for the block column; rename that factor."
   )
 
   # factor.names is passed to FrF2 rather than applied to the table
@@ -184,7 +228,9 @@ factorial_design <- function(k,
       nfactors = k,
       randomize = FALSE,
       factor.names = factor_names,
-      ncenter = center
+      ncenter = center,
+      blocks = blocks,
+      replications = replications
     ))
     description <- sprintf("2^%d full factorial", k)
   } else {
@@ -194,7 +240,9 @@ factorial_design <- function(k,
       design = names(entries)[alternative],
       randomize = FALSE,
       factor.names = factor_names,
-      ncenter = center
+      ncenter = center,
+      blocks = blocks,
+      replications = replications
     ))
     description <- sprintf(
       "2^(%d-%d) fractional factorial, resolution %s",
@@ -204,20 +252,49 @@ factorial_design <- function(k,
     )
   }
 
-  table <- as.data.frame(DoE.base::desnum(design))
-  table[] <- lapply(table, as.numeric)
-  names(table) <- factor_names
-  notes <- alias_notes(design)
+  # The design itself rather than desnum(): it carries FrF2's factor names and
+  # a readable Blocks column, where desnum() contrast-codes that column into
+  # Blocks1.
+  #
+  # The block column keeps its labels rather than being made numeric. With
+  # replications FrF2 labels blocks "1.1", "2.1" — block and replicate, not a
+  # decimal — so coercing would turn "1.1" into 1.1 and quietly invent a
+  # number. It is found by elimination because design.info$block.name is NULL
+  # when replications alone produced the column.
+  # Rebuilt as a plain data frame rather than modified in place: FrF2 carries
+  # design.info, desnum and run.order as attributes on the design, and those
+  # should not ride along on the table we hand out.
+  raw <- as.data.frame(design)
+  factor_columns <- intersect(names(raw), factor_names)
+  columns <- lapply(names(raw), function(column) {
+    values <- raw[[column]]
+    if (!column %in% factor_columns) {
+      as.character(values)
+    } else if (is.factor(values)) {
+      as.numeric(as.character(values))
+    } else {
+      as.numeric(values)
+    }
+  })
+  names(columns) <- names(raw)
+  table <- as.data.frame(columns, stringsAsFactors = FALSE, check.names = FALSE)
 
   new_design(
     table,
     sprintf(
-      "%s – %d factors, %d runs%s",
+      "%s – %d factors, %d runs%s%s%s",
       description,
       k,
       runs,
-      center_point_text(center, nrow(table))
+      if (blocks > 1) sprintf(", %d blocks", blocks) else "",
+      if (replications > 1) {
+        sprintf(", %d replications", replications)
+      } else {
+        ""
+      },
+      # ncenter is per block, so this many in total.
+      center_point_text(center * blocks, nrow(table))
     ),
-    notes
+    alias_notes(design)
   )
 }

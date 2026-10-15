@@ -1,6 +1,7 @@
 test_that("the factorial module returns a design once its inputs are set", {
   shiny::testServer(factorial_server, args = list(id = "factorial"), {
-    session$setInputs(k = 3, runs = "8", center = "0", factor_names = "")
+    session$setInputs(k = 3, runs = "8", center = "0", blocks = "1",
+                      replications = 1, factor_names = "")
     design <- session$getReturned()()
     expect_s3_class(design, "doe_design")
     expect_equal(names(design$table), c("A", "B", "C"))
@@ -14,6 +15,8 @@ test_that("the module passes factor names and center points through", {
       k = 3,
       runs = "8",
       center = "2",
+      blocks = "1",
+      replications = 1,
       factor_names = "Temp, Pressure, Time"
     )
     design <- session$getReturned()()
@@ -24,7 +27,8 @@ test_that("the module passes factor names and center points through", {
 
 test_that("changing the factor count repopulates the run choices", {
   shiny::testServer(factorial_server, args = list(id = "factorial"), {
-    session$setInputs(k = 3, runs = "8", center = "0", factor_names = "")
+    session$setInputs(k = 3, runs = "8", center = "0", blocks = "1",
+                      replications = 1, factor_names = "")
     expect_equal(unname(run_choices(3)), c(4, 8))
     session$setInputs(k = 5)
     # The observer fires on k; the new choices are what the dropdown is told.
@@ -34,7 +38,8 @@ test_that("changing the factor count repopulates the run choices", {
 
 test_that("a stale run count does not produce a design", {
   shiny::testServer(factorial_server, args = list(id = "factorial"), {
-    session$setInputs(k = 3, runs = "8", center = "0", factor_names = "")
+    session$setInputs(k = 3, runs = "8", center = "0", blocks = "1",
+                      replications = 1, factor_names = "")
     expect_s3_class(session$getReturned()(), "doe_design")
     # 8 runs is not a choice for 2 factors, which is the state that exists for
     # one flush after k changes. The reactive must pause, not error.
@@ -57,6 +62,8 @@ test_that("the app dispatches from the picker through to a design", {
       `factorial-k` = 3,
       `factorial-runs` = "8",
       `factorial-center` = "0",
+      `factorial-blocks` = "1",
+      `factorial-replications` = 1,
       `factorial-factor_names` = ""
     )
     expect_equal(selected(), "factorial")
