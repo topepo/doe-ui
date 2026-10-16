@@ -10,11 +10,15 @@ test_that("families appear in registry order, space-filling first", {
 
 test_that("every registry entry has the fields the app reads", {
   for (entry in design_registry()) {
-    expect_named(entry, c("label", "family", "ui", "server"))
+    expect_named(entry, c("label", "family", "ui", "server", "packages"))
     expect_type(entry$label, "character")
     expect_type(entry$family, "character")
     expect_true(is.function(entry$ui))
     expect_true(is.function(entry$server))
+    # Each design names its own packages, so the app can report the one that
+    # is actually missing rather than a union of everything.
+    expect_true(is.function(entry$packages))
+    expect_type(entry$packages(), "character")
   }
 })
 
@@ -70,4 +74,23 @@ test_that("the app dispatches to the scaffold without erroring out", {
     expect_equal(selected(), "factorial")
     expect_s3_class(current(), "doe_design")
   })
+})
+
+test_that("every design implements the helper contract it needs", {
+  # The factorial is the reference implementation of the contract in the
+  # README. The space-filling entry is scaffolding and has only the packages
+  # helper so far, which is what the app's startup check calls.
+  expect_true(is.function(factorial_get_packages))
+  expect_true(is.function(factorial_get_limits))
+  expect_true(is.function(factorial_get_num_runs_choices))
+  expect_true(is.function(factorial_get_blocks_choices))
+  expect_true(is.function(factorial_get_types))
+  expect_true(is.function(factorial_create))
+  expect_true(is.function(factorial_get_notes))
+
+  limits <- factorial_get_limits()
+  expect_type(limits, "list")
+  expect_named(limits, "num_factors")
+  expect_length(limits$num_factors, 2)
+  expect_true(limits$num_factors[1] < limits$num_factors[2])
 })

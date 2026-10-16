@@ -1,31 +1,31 @@
 # parse_factor_names fills, trims, truncates, and deduplicates
 
     Code
-      parse_factor_names(NULL, 3)
+      rename_factors(NULL, 3)
     Output
       [1] "A" "B" "C"
     Code
-      parse_factor_names("", 3)
+      rename_factors("", 3)
     Output
       [1] "A" "B" "C"
     Code
-      parse_factor_names("Temp, Pressure, Time", 3)
+      rename_factors("Temp, Pressure, Time", 3)
     Output
       [1] "Temp"     "Pressure" "Time"    
     Code
-      parse_factor_names("  Temp ,   Pressure  ", 3)
+      rename_factors("  Temp ,   Pressure  ", 3)
     Output
       [1] "Temp"     "Pressure" "C"       
     Code
-      parse_factor_names("Temp, Pressure, Time, Catalyst, Speed", 3)
+      rename_factors("Temp, Pressure, Time, Catalyst, Speed", 3)
     Output
       [1] "Temp"     "Pressure" "Time"    
     Code
-      parse_factor_names("Temp, Temp, Temp", 3)
+      rename_factors("Temp, Temp, Temp", 3)
     Output
       [1] "Temp"   "Temp_1" "Temp_2"
     Code
-      parse_factor_names(", ,Temp", 3)
+      rename_factors(", ,Temp", 3)
     Output
       [1] "Temp" "B"    "C"   
 

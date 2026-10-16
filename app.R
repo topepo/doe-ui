@@ -11,11 +11,18 @@
 #   R/registry.R          the registry and the sidebar picker
 #   R/ui.R, R/server.R    the page and how it updates
 
-REQUIRED_PACKAGES <- c("bslib", "DoE.base", "FrF2", "reactable", "shiny")
+# What the app itself needs. Each design names its own packages through
+# {design}_get_packages(), so adding a design that wraps a new package does not
+# mean editing a list here.
+APP_PACKAGES <- c("bslib", "reactable", "shiny")
 
 local({
-  missing <- REQUIRED_PACKAGES[
-    !vapply(REQUIRED_PACKAGES, requireNamespace, logical(1), quietly = TRUE)
+  required <- unique(c(
+    APP_PACKAGES,
+    unlist(lapply(design_registry(), function(design) design$packages()))
+  ))
+  missing <- required[
+    !vapply(required, requireNamespace, logical(1), quietly = TRUE)
   ]
   if (length(missing) > 0) {
     stop(

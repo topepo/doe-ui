@@ -18,13 +18,15 @@ design_registry <- function() {
       label = "Latin hypercube",
       family = "Space-Filling Designs",
       ui = spacefilling_ui,
-      server = spacefilling_server
+      server = spacefilling_server,
+      packages = spacefilling_get_packages
     ),
     factorial = list(
       label = "Two-level factorial",
       family = "Screening designs",
       ui = factorial_ui,
-      server = factorial_server
+      server = factorial_server,
+      packages = factorial_get_packages
     )
   )
 }

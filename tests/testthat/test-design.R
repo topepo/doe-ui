@@ -6,25 +6,25 @@ test_that("names0 zero-pads only once the width demands it", {
 })
 
 test_that("factor_labels uses letters until they run out, then names0", {
-  expect_equal(factor_labels(3), c("A", "B", "C"))
-  expect_equal(factor_labels(26)[26], "Z")
+  expect_equal(default_factor_names(3), c("A", "B", "C"))
+  expect_equal(default_factor_names(26)[26], "Z")
   # One past the alphabet every label switches over, rather than mixing the
   # two schemes within one design.
-  expect_equal(factor_labels(27)[1:2], c("x01", "x02"))
-  expect_equal(factor_labels(27)[27], "x27")
-  expect_false("A" %in% factor_labels(27))
-  expect_equal(factor_labels(100)[1], "x001")
+  expect_equal(default_factor_names(27)[1:2], c("x01", "x02"))
+  expect_equal(default_factor_names(27)[27], "x27")
+  expect_false("A" %in% default_factor_names(27))
+  expect_equal(default_factor_names(100)[1], "x001")
 })
 
 test_that("parse_factor_names fills, trims, truncates, and deduplicates", {
   expect_snapshot({
-    parse_factor_names(NULL, 3)
-    parse_factor_names("", 3)
-    parse_factor_names("Temp, Pressure, Time", 3)
-    parse_factor_names("  Temp ,   Pressure  ", 3)
-    parse_factor_names("Temp, Pressure, Time, Catalyst, Speed", 3)
-    parse_factor_names("Temp, Temp, Temp", 3)
-    parse_factor_names(", ,Temp", 3)
+    rename_factors(NULL, 3)
+    rename_factors("", 3)
+    rename_factors("Temp, Pressure, Time", 3)
+    rename_factors("  Temp ,   Pressure  ", 3)
+    rename_factors("Temp, Pressure, Time, Catalyst, Speed", 3)
+    rename_factors("Temp, Temp, Temp", 3)
+    rename_factors(", ,Temp", 3)
   })
 })
 

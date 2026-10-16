@@ -29,10 +29,10 @@ test_that("changing the factor count repopulates the run choices", {
   shiny::testServer(factorial_server, args = list(id = "factorial"), {
     session$setInputs(num_factors = 3, num_runs = "8", center = "0", blocks = "1",
                       replications = 1, factor_names = "")
-    expect_equal(unname(run_choices(3)), c(4, 8))
+    expect_equal(unname(factorial_get_num_runs_choices(3)), c(4, 8))
     session$setInputs(num_factors = 5)
     # The observer fires on k; the new choices are what the dropdown is told.
-    expect_equal(unname(run_choices(5)), c(8, 16, 32))
+    expect_equal(unname(factorial_get_num_runs_choices(5)), c(8, 16, 32))
   })
 })
 

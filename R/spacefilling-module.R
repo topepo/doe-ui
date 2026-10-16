@@ -8,6 +8,12 @@
 # Nothing here decides which package generates the design, or what options it
 # takes. Those arrive together with the generator.
 
+# No package yet, so nothing to check. When the generator lands this returns
+# whichever package produces the design.
+spacefilling_get_packages <- function() {
+  character(0)
+}
+
 spacefilling_ui <- function(id) {
   ns <- shiny::NS(id)
   shiny::tagList(

@@ -100,7 +100,7 @@ names0 <- function(num, prefix = "x") {
   paste0(prefix, ind)
 }
 
-# Canonical factor labels: single letters while they last, then names0().
+# Default factor names: single letters while they last, then names0().
 #
 # Used both for default column names and for the alias notation — generators
 # like "E = ABC" and defining relations like "I = ABCE". Those read well while
@@ -112,7 +112,7 @@ names0 <- function(num, prefix = "x") {
 # What this is *not* used for is a user's own factor names. Those reach the
 # columns only; the alias notation stays canonical, so renaming a factor to
 # "Temp" never turns the defining relation into prose.
-factor_labels <- function(num_factors) {
+default_factor_names <- function(num_factors) {
   if (num_factors <= length(LETTERS)) {
     LETTERS[seq_len(num_factors)]
   } else {
@@ -120,13 +120,20 @@ factor_labels <- function(num_factors) {
   }
 }
 
-# Turn the comma-separated "Factor names" box into exactly num_factors names.
-# Anything the user leaves out falls back to factor_labels(); extra names are
-# dropped; duplicates are made unique so two columns cannot share a header.
-parse_factor_names <- function(text, num_factors) {
+# Merge the user's comma-separated factor names over the defaults, giving
+# exactly num_factors of them. Anything left out falls back to
+# default_factor_names(); extra names are dropped; duplicates are made unique
+# so two columns cannot share a header.
+#
+# The result feeds {design}_create(), which hands it to the underlying package.
+# It must not be applied to a finished design instead: FrF2 needs the names at
+# construction for its alias legend to read "A=Temp" rather than "A=A", and
+# renaming afterwards would leave the notes describing factors by the wrong
+# label.
+rename_factors <- function(text, num_factors) {
   given <- trimws(strsplit(text %||% "", ",", fixed = TRUE)[[1]])
   given <- given[nzchar(given)]
-  names <- factor_labels(num_factors)
+  names <- default_factor_names(num_factors)
   supplied <- seq_len(min(length(given), num_factors))
   names[supplied] <- given[supplied]
   make.unique(names, sep = "_")

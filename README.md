@@ -35,9 +35,34 @@ Shiny sources everything in `R/` automatically, so there is nothing to `source()
 
 One design is one Shiny module whose server returns a reactive yielding a `doe_design`. To add one:
 
-1. Write `R/<name>-design.R` with a generator that takes its options as arguments, validates them, and returns `new_design()`. Keep it free of Shiny so it can be tested directly. The design must come from an R package — nothing is constructed here.
-2. Write `R/<name>-module.R` with `<name>_ui(id)` and `<name>_server(id)`.
+1. Write `R/<name>-design.R` implementing the helper contract below. Keep it free of Shiny so every piece is testable on its own. The design must come from an R package — nothing is constructed here.
+2. Write `R/<name>-module.R` with `<name>_ui(id)` and `<name>_server(id)`. The UI builds the inputs from the design's own limits and choices; the server returns a reactive yielding the `doe_design`.
 3. Add one entry to `design_registry()` in `R/registry.R`.
+
+`R/factorial-design.R` is the reference implementation.
+
+### The helper contract
+
+| function | returns |
+| --- | --- |
+| `{design}_get_packages()` | character vector of packages this design needs |
+| `{design}_get_limits()` | **named list** of integer ranges, one per count option |
+| `{design}_get_{option}_choices(...)` | valid values for an option whose range depends on other options |
+| `{design}_get_types(...)` | the variants to choose between, ids named by label — possibly none |
+| `{design}_create(...)` | the `doe_design`, built by the package |
+| `{design}_get_notes(design)` | what the package says about the result |
+
+Three of these have shapes that exist because the designs disagree with each other, so do not simplify them away:
+
+**`_get_limits()` returns a named list, not one range.** Only some designs have a single factor-count axis. A crossed array has separate control and noise counts; a mixture design counts components; a Latin square has one size that fixes everything. The factorial returns `list(num_factors = c(2, 127))`, and a crossed array would return `list(control = c(3, 7), noise = c(1, 15))`.
+
+**`_create()` takes named options, with no fixed positional run count.** The number of runs is something the user *chooses* for only a couple of designs — the two-level factorial and the Latin hypercube. For a Box-Behnken, a central composite, a Plackett-Burman or a randomized block it is *derived* from the other options, so those designs must not be made to carry a `num_runs` argument they would have to ignore. Designs that take one accept `num_runs`; the rest do not.
+
+**`_get_types()` may legitimately return nothing.** Of the designs this app is meant to cover, most have no variant to choose between. A full factorial has none either, which is exactly how `factorial_create()` tells a full factorial from a fraction. Callers must handle a zero-length result rather than assuming at least one.
+
+Identify a type by the package's own id, not by position. `factorial_get_types()` returns FrF2 catalog ids like `6-2.1`, so a type left over from a different size is rejected by name. An index would silently select whatever had moved into that slot.
+
+### Naming
 
 ### The packages are the source of truth
 
@@ -64,6 +89,8 @@ Three shared helpers in `R/design.R` turn a rejected value into a message worth 
 - `stop_unless(condition, message)` — everything else.
 
 Messages are shown to the user in place of the table, so write them for the person running the experiment.
+
+Factor names come from two shared helpers in `R/design.R`. `default_factor_names(num_factors)` generates the defaults — single letters while they last, then `names0()`. `rename_factors(text, num_factors)` merges a user's comma-separated names over those defaults. The result feeds `{design}_create()`, which hands it to the package; it must **not** be applied to a finished design instead. FrF2 needs the names at construction for its alias legend to read `A=Temp` rather than `A=A`, and renaming afterwards would leave the notes describing factors by the wrong label.
 
 Name the two quantities every design shares consistently: `num_runs` for the number of runs and `num_factors` for the number of experimental factors. That applies to function arguments, local variables and Shiny input ids alike, so `input$num_factors` feeds `factorial_design(num_factors = )`. Arguments of the underlying package keep that package's own spelling — `FrF2::FrF2(nruns = , nfactors = )` is called as FrF2 names it, not renamed at the boundary.
 

@@ -1,4 +1,4 @@
-# The Shiny module wrapping factorial_design(). The server returns a reactive
+# The Shiny module wrapping factorial_create(). The server returns a reactive
 # yielding a doe_design, which is the whole contract the app depends on.
 
 factorial_ui <- function(id) {
@@ -8,8 +8,8 @@ factorial_ui <- function(id) {
       ns("num_factors"),
       "Number of factors",
       value = 6,
-      min = factorial_factor_range[1],
-      max = factorial_factor_range[2]
+      min = factorial_get_limits()$num_factors[1],
+      max = factorial_get_limits()$num_factors[2]
     ),
     # Choices are filled in by the server, because they depend on num_factors.
     shiny::selectInput(ns("num_runs"), "Number of runs", choices = NULL),
@@ -24,7 +24,7 @@ factorial_ui <- function(id) {
     ),
     # Unlike the dropdown above, this input's existence is conditional, not
     # just its choices, so it stays a renderUI.
-    shiny::uiOutput(ns("alternatives"))
+    shiny::uiOutput(ns("types"))
   )
 }
 
@@ -32,12 +32,13 @@ factorial_ui <- function(id) {
 # below, because moduleServer() runs eagerly at startup and input$num_factors
 # is NULL until the UI has been rendered and bound.
 usable_factor_count <- function(num_factors) {
+  limits <- factorial_get_limits()$num_factors
   isTRUE(
     length(num_factors) == 1 &&
       !is.na(num_factors) &&
       num_factors == round(num_factors) &&
-      num_factors >= factorial_factor_range[1] &&
-      num_factors <= factorial_factor_range[2]
+      num_factors >= limits[1] &&
+      num_factors <= limits[2]
   )
 }
 
@@ -48,7 +49,7 @@ factorial_server <- function(id) {
       shiny::updateSelectInput(
         session,
         "num_runs",
-        choices = run_choices(input$num_factors)
+        choices = factorial_get_num_runs_choices(input$num_factors)
       )
     })
 
@@ -58,7 +59,7 @@ factorial_server <- function(id) {
     num_runs <- shiny::reactive({
       shiny::req(usable_factor_count(input$num_factors), input$num_runs)
       value <- as.numeric(input$num_runs)
-      shiny::req(value %in% run_choices(input$num_factors))
+      shiny::req(value %in% factorial_get_num_runs_choices(input$num_factors))
       value
     })
 
@@ -67,30 +68,26 @@ factorial_server <- function(id) {
       shiny::updateSelectInput(
         session,
         "blocks",
-        choices = block_choices(num_runs())
+        choices = factorial_get_blocks_choices(num_runs())
       )
     })
 
-    entries <- shiny::reactive({
-      catalog_entries(as.integer(input$num_factors), num_runs())
+    types <- shiny::reactive({
+      factorial_get_types(as.integer(input$num_factors), num_runs())
     })
 
-    # With fewer than two equivalent fractions there is nothing to choose, so
-    # the input is not drawn at all.
-    output$alternatives <- shiny::renderUI({
-      found <- entries()
-      if (length(found) < 2) {
+    # With fewer than two variants there is nothing to choose, so the input is
+    # not drawn at all.
+    output$types <- shiny::renderUI({
+      available <- types()
+      if (length(available) < 2) {
         return(NULL)
       }
       shiny::radioButtons(
-        session$ns("alternative"),
+        session$ns("type"),
         "Choose a design",
-        choiceNames = unname(vapply(
-          names(found),
-          function(name) describe_entry(name, found[[name]]),
-          character(1)
-        )),
-        choiceValues = seq_along(found),
+        choiceNames = names(available),
+        choiceValues = unname(available),
         width = "100%"
       )
     })
@@ -108,20 +105,21 @@ factorial_server <- function(id) {
       # The block choices are repopulated when the run count changes, so the
       # old value can briefly outlive the run count it belonged to.
       blocks <- as.numeric(input$blocks)
-      shiny::req(blocks %in% block_choices(num_runs()))
+      shiny::req(blocks %in% factorial_get_blocks_choices(num_runs()))
       num_factors <- as.integer(input$num_factors)
 
       design <- tryCatch(
-        factorial_design(
+        factorial_create(
           num_factors = num_factors,
           num_runs = num_runs(),
-          # Removing the radio does not clear the input, so a stale choice can
-          # outlive the design it belonged to. factorial_design() clamps it.
-          alternative = as.integer(input$alternative %||% 1),
+          # Removing the radio does not clear the input, so a type can outlive
+          # the size it belonged to. Falling back to the best available one is
+          # a UI concern; factorial_create() itself rejects an unknown id.
+          type = if (isTRUE(input$type %in% types())) input$type else NULL,
           center = as.integer(input$center),
           blocks = blocks,
           replications = as.integer(input$replications),
-          factor_names = parse_factor_names(input$factor_names, num_factors)
+          factor_names = rename_factors(input$factor_names, num_factors)
         ),
         error = function(e) e
       )

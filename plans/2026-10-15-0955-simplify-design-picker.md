@@ -332,3 +332,30 @@ Three things deliberately left alone:
 Historical sections of this plan still refer to `k` and `runs` where they describe work done at the time. That is the record of what happened, so it stays as written.
 
 All 149 tests pass. The 19 snapshot lines that changed are the expressions `expect_snapshot()` records, not results — every error message and printed output is byte-identical, checked by diffing them against the previous commit.
+
+## Follow-up: a prescriptive helper contract
+
+The README said a design needs "a generator that takes its options as arguments, validates them, and returns `new_design()`", which is too vague to follow. There is now a named contract, with `R/factorial-design.R` as the reference implementation:
+
+| function | returns |
+| --- | --- |
+| `{design}_get_packages()` | packages this design needs |
+| `{design}_get_limits()` | named list of integer ranges, one per count option |
+| `{design}_get_{option}_choices(...)` | valid values for an option that depends on other options |
+| `{design}_get_types(...)` | the variants to choose between, ids named by label |
+| `{design}_create(...)` | the `doe_design` |
+| `{design}_get_notes(design)` | what the package says about the result |
+
+Three shapes in that table exist because the deferred designs disagree with each other, and auditing their old signatures is what settled them:
+
+- **`_get_limits()` returns a named list** rather than one range. Four of the eleven original generators count something other than factors — components, treatments, a square size — and the crossed array has two independent counts.
+- **`_create()` takes named options with no positional run count.** The run count is chosen for only two of eleven designs; everywhere else it is derived from the other options, so a fixed `num_runs` argument would be dead weight those designs must ignore.
+- **`_get_types()` may return nothing.** Six of eleven have no variant at all, and a full factorial has none either — which is now exactly how `factorial_create()` distinguishes a full factorial from a fraction.
+
+**Types are identified by the package's own id.** `factorial_get_types()` returns FrF2 catalog ids like `6-2.1`, named by their label. This replaced an `alternative` index, and removed a real defect with it: the index was clamped with `min(max(1, alternative), length(entries))`, so a selection left over from a different size silently became whatever had moved into that slot. An unknown id is now rejected by name through `stop_unavailable()`, and the module falls back to the best type rather than the generator guessing.
+
+**Package checks are per design.** `app.R` keeps only `APP_PACKAGES` for what the app itself needs; everything else comes from each entry's `packages` field in the registry. Adding a design that wraps a new package no longer means editing a central list, and the error names the package actually missing.
+
+Renamed along the way: `factor_labels()` to `default_factor_names()`, `parse_factor_names()` to `rename_factors()`, `run_choices()` to `factorial_get_num_runs_choices()`, `block_choices()` to `factorial_get_blocks_choices()`, `catalog_entries()` to `factorial_catalog_entries()`, `describe_entry()` to `factorial_type_label()`, `alias_notes()` to `factorial_get_notes()`, and `factorial_design()` to `factorial_create()`.
+
+168 tests pass, no skips.

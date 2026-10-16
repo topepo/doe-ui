@@ -1,6 +1,23 @@
 # Two-level factorial designs, full and fractional, from FrF2's catalog.
 # Pure computation: no Shiny here, so every function below is testable on its
 # own.
+#
+# This file implements the design contract described in the README:
+#
+#   factorial_get_packages()            packages this design needs
+#   factorial_get_limits()              integer range of each count option
+#   factorial_get_num_runs_choices()    valid run counts, given the factors
+#   factorial_get_blocks_choices()      valid block counts, given the runs
+#   factorial_get_types()               the variants to choose between
+#   factorial_create()                  builds the doe_design
+#   factorial_get_notes()               what the package says about the result
+
+# The packages this design needs. Per design rather than one global list,
+# because each design wraps a different package and the app should be able to
+# name the one that is actually missing.
+factorial_get_packages <- function() {
+  c("DoE.base", "FrF2")
+}
 
 # The largest design this app offers. A practical limit of ours, not one of
 # FrF2 — the installed catalog reaches 4096 runs and 160 factors, well past
@@ -33,6 +50,15 @@ factorial_factor_range <- local({
   range(c(catalogued, unlist(full_only)))
 })
 
+# The integer range of each count option, as a named list.
+#
+# A named list rather than a single range because not every design has one
+# axis: a crossed array has separate control and noise factor counts, and a
+# mixture design counts components rather than factors.
+factorial_get_limits <- function() {
+  list(num_factors = factorial_factor_range)
+}
+
 # Run counts available for num_factors factors: the catalogued fractions, plus
 # the full factorial, when it is no larger than the biggest design the catalog
 # holds.
@@ -46,7 +72,7 @@ factorial_factor_range <- local({
 # arithmetic version would get away with it today. Reading the catalog means
 # the app stays right if the ceiling is raised or a future FrF2 ships a
 # different catalog, instead of depending on that coincidence.
-run_choices <- function(num_factors) {
+factorial_get_num_runs_choices <- function(num_factors) {
   fractions <- factorial_support[[as.character(num_factors)]] %||% numeric(0)
   full <- if (2^num_factors <= FACTORIAL_MAX_RUNS) 2^num_factors else numeric(0)
   num_runs <- sort(unique(c(fractions, full)))
@@ -66,7 +92,7 @@ run_choices <- function(num_factors) {
 # The catalog designs of this size, best first: highest resolution, then the
 # fewest words of that shortest length. A full factorial is not in the catalog,
 # so this is empty for one.
-catalog_entries <- function(num_factors, num_runs) {
+factorial_catalog_entries <- function(num_factors, num_runs) {
   entries <- Filter(
     function(e) e$nfac == num_factors && e$nruns == num_runs,
     FrF2::catlg
@@ -79,10 +105,10 @@ catalog_entries <- function(num_factors, num_runs) {
   utils::head(entries[order(-resolution, shortest)], 6)
 }
 
-# One line describing a catalog design, for the "Choose a design" radio.
+# The label shown for one catalog design in the "Choose a design" radio.
 # Generators come from DoE.base, already written as "E=ABC", rather than being
 # decoded from the catalog's Yates column codes here.
-describe_entry <- function(name, entry, max_generators = 6) {
+factorial_type_label <- function(name, entry, max_generators = 6) {
   # select.catlg is passed explicitly: generators() defaults it to a bare
   # `catlg`, which is only on the search path if FrF2 has been attached, and
   # this app only ever uses FrF2:: qualified calls.
@@ -104,6 +130,25 @@ describe_entry <- function(name, entry, max_generators = 6) {
   )
 }
 
+# The design variants available at this size, as a character vector of catalog
+# ids named by the label to show. Empty when there is nothing to choose: a full
+# factorial has no catalog entry, and most other designs have no type at all,
+# so callers must handle a zero-length result.
+factorial_get_types <- function(num_factors, num_runs) {
+  entries <- factorial_catalog_entries(num_factors, num_runs)
+  if (length(entries) == 0) {
+    return(stats::setNames(character(0), character(0)))
+  }
+  stats::setNames(
+    names(entries),
+    vapply(
+      names(entries),
+      function(id) factorial_type_label(id, entries[[id]]),
+      character(1)
+    )
+  )
+}
+
 # The alias structure FrF2 attaches to every design it builds, under
 # attr(design, "design.info")$aliased. Reported, not derived.
 #
@@ -114,7 +159,7 @@ describe_entry <- function(name, entry, max_generators = 6) {
 # instead reports alias classes of two-factor interactions, which is bounded
 # by the run count — 0.11s for that 60-factor design — and is what an
 # experimenter wants to know anyway.
-alias_notes <- function(design) {
+factorial_get_notes <- function(design) {
   aliased <- attr(design, "design.info")$aliased
   # A full factorial has no catalog entry and nothing aliased.
   if (is.null(aliased)) {
@@ -156,30 +201,30 @@ alias_notes <- function(design) {
 # a 256-run design, which is far too slow for a dropdown. So offer what is
 # structurally valid and let FrF2's own message cover the rest; the module
 # shows it in place of the table.
-block_choices <- function(num_runs) {
+factorial_get_blocks_choices <- function(num_runs) {
   2^(0:floor(log2(num_runs / 2)))
 }
 
 # A two-level factorial design.
 #
-#   num_factors  number of factors, within factorial_factor_range
-#   num_runs     number of runs, one of run_choices(num_factors)
-#   alternative  which catalog design to use when several are equivalent, 1
-#                being the best. Ignored for a full factorial; out-of-range
-#                values are moved to the nearest valid one.
+#   num_factors  within factorial_get_limits()$num_factors
+#   num_runs     one of factorial_get_num_runs_choices(num_factors)
+#   type         which catalog design to use when several are equivalent, as an
+#                id from factorial_get_types(). NULL takes the best one, and is
+#                the only valid value for a full factorial, which has no types.
 #   center       center points per block
-#   blocks       number of blocks, one of block_choices(num_runs)
+#   blocks       one of factorial_get_blocks_choices(num_runs)
 #   replications times each run is carried out
 #   factor_names column names, one per factor
 #
 # center, blocks and replications default to FrF2's own defaults.
-factorial_design <- function(num_factors,
+factorial_create <- function(num_factors,
                              num_runs,
-                             alternative = 1,
+                             type = NULL,
                              center = 0,
                              blocks = 1,
                              replications = 1,
-                             factor_names = factor_labels(num_factors)) {
+                             factor_names = default_factor_names(num_factors)) {
   # Checked before the range comparison below, which would otherwise be NA and
   # fail with "missing value where TRUE/FALSE needed" rather than a message.
   stop_unless(
@@ -194,7 +239,7 @@ factorial_design <- function(num_factors,
   ) {
     stop_out_of_range(num_factors, factorial_factor_range, "Number of factors")
   }
-  available <- run_choices(num_factors)
+  available <- factorial_get_num_runs_choices(num_factors)
   if (!num_runs %in% available) {
     stop_unavailable(
       num_runs,
@@ -208,7 +253,7 @@ factorial_design <- function(num_factors,
     replications >= 1 && replications == round(replications),
     "Replications must be a whole number of at least 1."
   )
-  available_blocks <- block_choices(num_runs)
+  available_blocks <- factorial_get_blocks_choices(num_runs)
   if (!blocks %in% available_blocks) {
     stop_unavailable(
       blocks,
@@ -240,8 +285,10 @@ factorial_design <- function(num_factors,
   # randomize = FALSE it puts them at the end, which is what we were doing by
   # hand; it also records them in design.info, and its center.distribute
   # argument can spread them through the run order if that is ever wanted.
-  entries <- catalog_entries(num_factors, num_runs)
-  if (length(entries) == 0) {
+  types <- factorial_get_types(num_factors, num_runs)
+  if (length(types) == 0) {
+    # A full factorial, which the catalog does not hold and which has no
+    # variants to choose between.
     design <- suppressMessages(FrF2::FrF2(
       nruns = num_runs,
       nfactors = num_factors,
@@ -253,10 +300,23 @@ factorial_design <- function(num_factors,
     ))
     description <- sprintf("2^%d full factorial", num_factors)
   } else {
-    alternative <- min(max(1, alternative), length(entries))
-    entry <- entries[[alternative]]
+    # Identified by catalog id rather than by position, so a type left over
+    # from a different size is rejected by name instead of silently selecting
+    # whatever now sits at that index.
+    if (is.null(type)) {
+      type <- unname(types[1])
+    }
+    if (!type %in% types) {
+      stop_unavailable(
+        type,
+        types,
+        "design",
+        sprintf("%d factors in %d runs", num_factors, num_runs)
+      )
+    }
+    entry <- FrF2::catlg[[type]]
     design <- suppressMessages(FrF2::FrF2(
-      design = names(entries)[alternative],
+      design = type,
       randomize = FALSE,
       factor.names = factor_names,
       ncenter = center,
@@ -314,6 +374,6 @@ factorial_design <- function(num_factors,
       # ncenter is per block, so this many in total.
       center_point_text(center * blocks, nrow(table))
     ),
-    alias_notes(design)
+    factorial_get_notes(design)
   )
 }
