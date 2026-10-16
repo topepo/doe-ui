@@ -37,7 +37,7 @@
 # a fractional factorial reports its resolution and generators
 
     Code
-      factorial_design(k = 6, runs = 16)
+      factorial_design(num_factors = 6, num_runs = 16)
     Output
       2^(6-2) fractional factorial, resolution IV – 6 factors, 16 runs
         Two-factor interactions aliased: AB=CE=DF, AC=BE, AD=BF, AE=BC, AF=BD, CD=EF, CF=DE
@@ -62,15 +62,15 @@
 # alias notes are read from FrF2, at every design size
 
     Code
-      factorial_design(k = 6, runs = 16)$notes
+      factorial_design(num_factors = 6, num_runs = 16)$notes
     Output
       [1] "Two-factor interactions aliased: AB=CE=DF, AC=BE, AD=BF, AE=BC, AF=BD, CD=EF, CF=DE"
     Code
-      factorial_design(k = 7, runs = 8)$notes
+      factorial_design(num_factors = 7, num_runs = 8)$notes
     Output
       [1] "Main effects aliased: A=BD=CE=FG, B=AD=CF=EG, C=AE=BF=DG, D=AB=CG=EF, E=AC=BG=DF, F=AG=BC=DE, G=AF=BE=CD"
     Code
-      factorial_design(k = 3, runs = 8)$notes
+      factorial_design(num_factors = 3, num_runs = 8)$notes
     Output
       character(0)
 
@@ -99,42 +99,43 @@
 # invalid options fail with a message written for the user
 
     Code
-      factorial_design(k = 1, runs = 2)
+      factorial_design(num_factors = 1, num_runs = 2)
     Condition
       Error:
       ! Number of factors must be between 2 and 127. Got 1.
     Code
-      factorial_design(k = 500, runs = 8)
+      factorial_design(num_factors = 500, num_runs = 8)
     Condition
       Error:
       ! Number of factors must be between 2 and 127. Got 500.
     Code
-      factorial_design(k = NA, runs = 8)
+      factorial_design(num_factors = NA, num_runs = 8)
     Condition
       Error:
       ! Number of factors must be a whole number.
     Code
-      factorial_design(k = 3.5, runs = 8)
+      factorial_design(num_factors = 3.5, num_runs = 8)
     Condition
       Error:
       ! Number of factors must be a whole number.
     Code
-      factorial_design(k = 3, runs = 6)
+      factorial_design(num_factors = 3, num_runs = 6)
     Condition
       Error:
       ! 6 is not an available run count for 3 factors. Choose one of: 4, 8.
     Code
-      factorial_design(k = 34, runs = 1024)
+      factorial_design(num_factors = 34, num_runs = 1024)
     Condition
       Error:
       ! 1024 is not an available run count for 34 factors. Choose one of: 64, 128, 256.
     Code
-      factorial_design(k = 3, runs = 8, center = -1)
+      factorial_design(num_factors = 3, num_runs = 8, center = -1)
     Condition
       Error:
       ! Center points cannot be negative.
     Code
-      factorial_design(k = 3, runs = 8, factor_names = c("Temp", "Pressure"))
+      factorial_design(num_factors = 3, num_runs = 8, factor_names = c("Temp",
+        "Pressure"))
     Condition
       Error:
       ! Give 3 factor names, not 2.
@@ -183,23 +184,23 @@
 # block counts follow FrF2's rules and report what is available
 
     Code
-      factorial_design(k = 3, runs = 8, blocks = 3)
+      factorial_design(num_factors = 3, num_runs = 8, blocks = 3)
     Condition
       Error:
       ! 3 is not an available block count for 8 runs. Choose one of: 1, 2, 4.
     Code
-      factorial_design(k = 3, runs = 8, blocks = 16)
+      factorial_design(num_factors = 3, num_runs = 8, blocks = 16)
     Condition
       Error:
       ! 16 is not an available block count for 8 runs. Choose one of: 1, 2, 4.
     Code
-      factorial_design(k = 3, runs = 8, replications = 0)
+      factorial_design(num_factors = 3, num_runs = 8, replications = 0)
     Condition
       Error:
       ! Replications must be a whole number of at least 1.
     Code
-      factorial_design(k = 3, runs = 8, blocks = 2, factor_names = c("Blocks", "B",
-        "C"))
+      factorial_design(num_factors = 3, num_runs = 8, blocks = 2, factor_names = c(
+        "Blocks", "B", "C"))
     Condition
       Error:
       ! "Blocks" is reserved for the block column; rename that factor.
@@ -207,7 +208,7 @@
 # a blocking FrF2 will not build reports its own reason
 
     Code
-      factorial_design(k = 6, runs = 16, blocks = 4)
+      factorial_design(num_factors = 6, num_runs = 16, blocks = 4)
     Condition
       Error in `FrF2::FrF2()`:
       ! no adequate blocked design found with 2fis unconfounded with blocks in design 6-2.1

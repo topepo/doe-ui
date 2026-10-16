@@ -1,6 +1,6 @@
 test_that("the factorial module returns a design once its inputs are set", {
   shiny::testServer(factorial_server, args = list(id = "factorial"), {
-    session$setInputs(k = 3, runs = "8", center = "0", blocks = "1",
+    session$setInputs(num_factors = 3, num_runs = "8", center = "0", blocks = "1",
                       replications = 1, factor_names = "")
     design <- session$getReturned()()
     expect_s3_class(design, "doe_design")
@@ -12,8 +12,8 @@ test_that("the factorial module returns a design once its inputs are set", {
 test_that("the module passes factor names and center points through", {
   shiny::testServer(factorial_server, args = list(id = "factorial"), {
     session$setInputs(
-      k = 3,
-      runs = "8",
+      num_factors = 3,
+      num_runs = "8",
       center = "2",
       blocks = "1",
       replications = 1,
@@ -27,10 +27,10 @@ test_that("the module passes factor names and center points through", {
 
 test_that("changing the factor count repopulates the run choices", {
   shiny::testServer(factorial_server, args = list(id = "factorial"), {
-    session$setInputs(k = 3, runs = "8", center = "0", blocks = "1",
+    session$setInputs(num_factors = 3, num_runs = "8", center = "0", blocks = "1",
                       replications = 1, factor_names = "")
     expect_equal(unname(run_choices(3)), c(4, 8))
-    session$setInputs(k = 5)
+    session$setInputs(num_factors = 5)
     # The observer fires on k; the new choices are what the dropdown is told.
     expect_equal(unname(run_choices(5)), c(8, 16, 32))
   })
@@ -38,19 +38,19 @@ test_that("changing the factor count repopulates the run choices", {
 
 test_that("a stale run count does not produce a design", {
   shiny::testServer(factorial_server, args = list(id = "factorial"), {
-    session$setInputs(k = 3, runs = "8", center = "0", blocks = "1",
+    session$setInputs(num_factors = 3, num_runs = "8", center = "0", blocks = "1",
                       replications = 1, factor_names = "")
     expect_s3_class(session$getReturned()(), "doe_design")
     # 8 runs is not a choice for 2 factors, which is the state that exists for
     # one flush after k changes. The reactive must pause, not error.
-    session$setInputs(k = 2)
+    session$setInputs(num_factors = 2)
     expect_error(session$getReturned()(), class = "shiny.silent.error")
   })
 })
 
 test_that("an unusable factor count pauses with a message rather than failing", {
   shiny::testServer(factorial_server, args = list(id = "factorial"), {
-    session$setInputs(k = NA, runs = "8", center = "0", factor_names = "")
+    session$setInputs(num_factors = NA, num_runs = "8", center = "0", factor_names = "")
     expect_error(session$getReturned()(), class = "shiny.silent.error")
   })
 })
@@ -59,8 +59,8 @@ test_that("the app dispatches from the picker through to a design", {
   shiny::testServer(app_server, {
     session$setInputs(`picker-family_1` = "factorial", randomize = FALSE)
     session$setInputs(
-      `factorial-k` = 3,
-      `factorial-runs` = "8",
+      `factorial-num_factors` = 3,
+      `factorial-num_runs` = "8",
       `factorial-center` = "0",
       `factorial-blocks` = "1",
       `factorial-replications` = 1,

@@ -5,14 +5,14 @@ factorial_ui <- function(id) {
   ns <- shiny::NS(id)
   shiny::tagList(
     shiny::numericInput(
-      ns("k"),
+      ns("num_factors"),
       "Number of factors",
       value = 6,
       min = factorial_factor_range[1],
       max = factorial_factor_range[2]
     ),
-    # Choices are filled in by the server, because they depend on k.
-    shiny::selectInput(ns("runs"), "Number of runs", choices = NULL),
+    # Choices are filled in by the server, because they depend on num_factors.
+    shiny::selectInput(ns("num_runs"), "Number of runs", choices = NULL),
     shiny::selectInput(ns("center"), "Center points per block", choices = 0:5, selected = 0),
     # Choices depend on the run count, so the server fills them in.
     shiny::selectInput(ns("blocks"), "Blocks", choices = NULL),
@@ -29,41 +29,50 @@ factorial_ui <- function(id) {
 }
 
 # Is this a factor count we can build a design from? Guards every reactive
-# below, because moduleServer() runs eagerly at startup and input$k is NULL
-# until the UI has been rendered and bound.
-usable_factor_count <- function(k) {
+# below, because moduleServer() runs eagerly at startup and input$num_factors
+# is NULL until the UI has been rendered and bound.
+usable_factor_count <- function(num_factors) {
   isTRUE(
-    length(k) == 1 &&
-      !is.na(k) &&
-      k == round(k) &&
-      k >= factorial_factor_range[1] &&
-      k <= factorial_factor_range[2]
+    length(num_factors) == 1 &&
+      !is.na(num_factors) &&
+      num_factors == round(num_factors) &&
+      num_factors >= factorial_factor_range[1] &&
+      num_factors <= factorial_factor_range[2]
   )
 }
 
 factorial_server <- function(id) {
   shiny::moduleServer(id, function(input, output, session) {
-    shiny::observeEvent(input$k, {
-      shiny::req(usable_factor_count(input$k))
-      shiny::updateSelectInput(session, "runs", choices = run_choices(input$k))
+    shiny::observeEvent(input$num_factors, {
+      shiny::req(usable_factor_count(input$num_factors))
+      shiny::updateSelectInput(
+        session,
+        "num_runs",
+        choices = run_choices(input$num_factors)
+      )
     })
 
     # The run count the user picked, once it is one that suits the current
-    # factor count. Just after k changes the old value is briefly still there.
-    runs <- shiny::reactive({
-      shiny::req(usable_factor_count(input$k), input$runs)
-      value <- as.numeric(input$runs)
-      shiny::req(value %in% run_choices(input$k))
+    # factor count. Just after num_factors changes the old value is briefly
+    # still there.
+    num_runs <- shiny::reactive({
+      shiny::req(usable_factor_count(input$num_factors), input$num_runs)
+      value <- as.numeric(input$num_runs)
+      shiny::req(value %in% run_choices(input$num_factors))
       value
     })
 
     # How many blocks are possible depends on the run count.
-    shiny::observeEvent(runs(), {
-      shiny::updateSelectInput(session, "blocks", choices = block_choices(runs()))
+    shiny::observeEvent(num_runs(), {
+      shiny::updateSelectInput(
+        session,
+        "blocks",
+        choices = block_choices(num_runs())
+      )
     })
 
     entries <- shiny::reactive({
-      catalog_entries(as.integer(input$k), runs())
+      catalog_entries(as.integer(input$num_factors), num_runs())
     })
 
     # With fewer than two equivalent fractions there is nothing to choose, so
@@ -88,7 +97,7 @@ factorial_server <- function(id) {
 
     shiny::reactive({
       shiny::validate(shiny::need(
-        usable_factor_count(input$k),
+        usable_factor_count(input$num_factors),
         sprintf(
           "Enter a whole number of factors from %d to %d.",
           factorial_factor_range[1],
@@ -99,20 +108,20 @@ factorial_server <- function(id) {
       # The block choices are repopulated when the run count changes, so the
       # old value can briefly outlive the run count it belonged to.
       blocks <- as.numeric(input$blocks)
-      shiny::req(blocks %in% block_choices(runs()))
-      k <- as.integer(input$k)
+      shiny::req(blocks %in% block_choices(num_runs()))
+      num_factors <- as.integer(input$num_factors)
 
       design <- tryCatch(
         factorial_design(
-          k = k,
-          runs = runs(),
+          num_factors = num_factors,
+          num_runs = num_runs(),
           # Removing the radio does not clear the input, so a stale choice can
           # outlive the design it belonged to. factorial_design() clamps it.
           alternative = as.integer(input$alternative %||% 1),
           center = as.integer(input$center),
           blocks = blocks,
           replications = as.integer(input$replications),
-          factor_names = parse_factor_names(input$factor_names, k)
+          factor_names = parse_factor_names(input$factor_names, num_factors)
         ),
         error = function(e) e
       )

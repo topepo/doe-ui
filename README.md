@@ -65,6 +65,8 @@ Three shared helpers in `R/design.R` turn a rejected value into a message worth 
 
 Messages are shown to the user in place of the table, so write them for the person running the experiment.
 
+Name the two quantities every design shares consistently: `num_runs` for the number of runs and `num_factors` for the number of experimental factors. That applies to function arguments, local variables and Shiny input ids alike, so `input$num_factors` feeds `factorial_design(num_factors = )`. Arguments of the underlying package keep that package's own spelling — `FrF2::FrF2(nruns = , nfactors = )` is called as FrF2 names it, not renamed at the boundary.
+
 Generators return rows in standard order and stay deterministic; `with_run_order()` adds the run-order column afterwards. That separation is what keeps the generator snapshots stable without seeding.
 
 Only the two-level factorial is implemented. Nine further designs — Plackett-Burman, definitive screening, central composite, Box-Behnken, simplex lattice, Latin hypercube, crossed array, randomized block, and Latin square — were removed pending a decision on how to compute them, and are recoverable from git history at `cc3901c`.

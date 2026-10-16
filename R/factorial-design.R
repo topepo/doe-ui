@@ -14,10 +14,10 @@ FACTORIAL_MAX_RUNS <- 256L
 # second copy of its contents written out here. Computed once, when Shiny
 # sources this file.
 factorial_support <- local({
-  nfac <- vapply(FrF2::catlg, function(e) e$nfac, numeric(1))
-  nruns <- vapply(FrF2::catlg, function(e) e$nruns, numeric(1))
-  within <- nruns <= FACTORIAL_MAX_RUNS
-  lapply(split(nruns[within], nfac[within]), function(x) sort(unique(x)))
+  num_factors <- vapply(FrF2::catlg, function(e) e$nfac, numeric(1))
+  num_runs <- vapply(FrF2::catlg, function(e) e$nruns, numeric(1))
+  keep <- num_runs <= FACTORIAL_MAX_RUNS
+  lapply(split(num_runs[keep], num_factors[keep]), function(x) sort(unique(x)))
 })
 
 # The factor counts with at least one available design, as c(min, max).
@@ -27,14 +27,15 @@ factorial_factor_range <- local({
   # factorial. Two is where a factorial starts being one at all, which is
   # definitional rather than a limit of the package or a choice of ours.
   full_only <- Filter(
-    function(k) 2^k <= FACTORIAL_MAX_RUNS,
+    function(num_factors) 2^num_factors <= FACTORIAL_MAX_RUNS,
     seq(2, max(catalogued))
   )
   range(c(catalogued, unlist(full_only)))
 })
 
-# Run counts available for k factors: the catalogued fractions, plus the full
-# factorial when it is no larger than the biggest design the catalog holds.
+# Run counts available for num_factors factors: the catalogued fractions, plus
+# the full factorial, when it is no larger than the biggest design the catalog
+# holds.
 #
 # These are read off the catalog rather than computed as a span of powers of
 # two. The catalog is irregular: 34 factors has a 2048-run design but no
@@ -45,23 +46,31 @@ factorial_factor_range <- local({
 # arithmetic version would get away with it today. Reading the catalog means
 # the app stays right if the ceiling is raised or a future FrF2 ships a
 # different catalog, instead of depending on that coincidence.
-run_choices <- function(k) {
-  fractions <- factorial_support[[as.character(k)]] %||% numeric(0)
-  full <- if (2^k <= FACTORIAL_MAX_RUNS) 2^k else numeric(0)
-  runs <- sort(unique(c(fractions, full)))
+run_choices <- function(num_factors) {
+  fractions <- factorial_support[[as.character(num_factors)]] %||% numeric(0)
+  full <- if (2^num_factors <= FACTORIAL_MAX_RUNS) 2^num_factors else numeric(0)
+  num_runs <- sort(unique(c(fractions, full)))
   labels <- ifelse(
-    runs == 2^k,
-    sprintf("%d runs (full factorial)", runs),
-    sprintf("%d runs (2^(%d-%d) fraction)", runs, k, k - log2(runs))
+    num_runs == 2^num_factors,
+    sprintf("%d runs (full factorial)", num_runs),
+    sprintf(
+      "%d runs (2^(%d-%d) fraction)",
+      num_runs,
+      num_factors,
+      num_factors - log2(num_runs)
+    )
   )
-  stats::setNames(runs, labels)
+  stats::setNames(num_runs, labels)
 }
 
 # The catalog designs of this size, best first: highest resolution, then the
 # fewest words of that shortest length. A full factorial is not in the catalog,
 # so this is empty for one.
-catalog_entries <- function(k, runs) {
-  entries <- Filter(function(e) e$nfac == k && e$nruns == runs, FrF2::catlg)
+catalog_entries <- function(num_factors, num_runs) {
+  entries <- Filter(
+    function(e) e$nfac == num_factors && e$nruns == num_runs,
+    FrF2::catlg
+  )
   if (length(entries) == 0) {
     return(entries)
   }
@@ -147,55 +156,65 @@ alias_notes <- function(design) {
 # a 256-run design, which is far too slow for a dropdown. So offer what is
 # structurally valid and let FrF2's own message cover the rest; the module
 # shows it in place of the table.
-block_choices <- function(runs) {
-  2^(0:floor(log2(runs / 2)))
+block_choices <- function(num_runs) {
+  2^(0:floor(log2(num_runs / 2)))
 }
 
 # A two-level factorial design.
 #
-#   k            number of factors, within factorial_factor_range
-#   runs         number of runs, one of run_choices(k)
+#   num_factors  number of factors, within factorial_factor_range
+#   num_runs     number of runs, one of run_choices(num_factors)
 #   alternative  which catalog design to use when several are equivalent, 1
 #                being the best. Ignored for a full factorial; out-of-range
 #                values are moved to the nearest valid one.
 #   center       center points per block
-#   blocks       number of blocks, one of block_choices(runs)
+#   blocks       number of blocks, one of block_choices(num_runs)
 #   replications times each run is carried out
 #   factor_names column names, one per factor
 #
 # center, blocks and replications default to FrF2's own defaults.
-factorial_design <- function(k,
-                             runs,
+factorial_design <- function(num_factors,
+                             num_runs,
                              alternative = 1,
                              center = 0,
                              blocks = 1,
                              replications = 1,
-                             factor_names = factor_labels(k)) {
+                             factor_names = factor_labels(num_factors)) {
   # Checked before the range comparison below, which would otherwise be NA and
   # fail with "missing value where TRUE/FALSE needed" rather than a message.
   stop_unless(
-    length(k) == 1 && !is.na(k) && k == round(k),
+    length(num_factors) == 1 &&
+      !is.na(num_factors) &&
+      num_factors == round(num_factors),
     "Number of factors must be a whole number."
   )
-  if (k < factorial_factor_range[1] || k > factorial_factor_range[2]) {
-    stop_out_of_range(k, factorial_factor_range, "Number of factors")
+  if (
+    num_factors < factorial_factor_range[1] ||
+      num_factors > factorial_factor_range[2]
+  ) {
+    stop_out_of_range(num_factors, factorial_factor_range, "Number of factors")
   }
-  available <- run_choices(k)
-  if (!runs %in% available) {
-    stop_unavailable(runs, available, "run count", sprintf("%d factors", k))
+  available <- run_choices(num_factors)
+  if (!num_runs %in% available) {
+    stop_unavailable(
+      num_runs,
+      available,
+      "run count",
+      sprintf("%d factors", num_factors)
+    )
   }
   stop_unless(center >= 0, "Center points cannot be negative.")
   stop_unless(
     replications >= 1 && replications == round(replications),
     "Replications must be a whole number of at least 1."
   )
-  available_blocks <- block_choices(runs)
+  available_blocks <- block_choices(num_runs)
   if (!blocks %in% available_blocks) {
     stop_unavailable(
       blocks,
       available_blocks,
       "block count",
-      sprintf("%d runs", runs)
+      sprintf("%d runs", num_runs)
     )
   }
   # as.numeric deliberately. FrF2's `blocks` is overloaded: a number means how
@@ -205,8 +224,8 @@ factorial_design <- function(k,
   # A double 1 means what we want.
   blocks <- as.numeric(blocks)
   stop_unless(
-    length(factor_names) == k,
-    sprintf("Give %d factor names, not %d.", k, length(factor_names))
+    length(factor_names) == num_factors,
+    sprintf("Give %d factor names, not %d.", num_factors, length(factor_names))
   )
   # FrF2 adds its block column under this name, so a factor cannot take it.
   stop_unless(
@@ -221,18 +240,18 @@ factorial_design <- function(k,
   # randomize = FALSE it puts them at the end, which is what we were doing by
   # hand; it also records them in design.info, and its center.distribute
   # argument can spread them through the run order if that is ever wanted.
-  entries <- catalog_entries(k, runs)
+  entries <- catalog_entries(num_factors, num_runs)
   if (length(entries) == 0) {
     design <- suppressMessages(FrF2::FrF2(
-      nruns = runs,
-      nfactors = k,
+      nruns = num_runs,
+      nfactors = num_factors,
       randomize = FALSE,
       factor.names = factor_names,
       ncenter = center,
       blocks = blocks,
       replications = replications
     ))
-    description <- sprintf("2^%d full factorial", k)
+    description <- sprintf("2^%d full factorial", num_factors)
   } else {
     alternative <- min(max(1, alternative), length(entries))
     entry <- entries[[alternative]]
@@ -246,8 +265,8 @@ factorial_design <- function(k,
     ))
     description <- sprintf(
       "2^(%d-%d) fractional factorial, resolution %s",
-      k,
-      k - log2(runs),
+      num_factors,
+      num_factors - log2(num_runs),
       as.character(utils::as.roman(entry$res))
     )
   }
@@ -284,8 +303,8 @@ factorial_design <- function(k,
     sprintf(
       "%s – %d factors, %d runs%s%s%s",
       description,
-      k,
-      runs,
+      num_factors,
+      num_runs,
       if (blocks > 1) sprintf(", %d blocks", blocks) else "",
       if (replications > 1) {
         sprintf(", %d replications", replications)

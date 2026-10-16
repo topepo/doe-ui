@@ -10,8 +10,16 @@ DEFAULT_DESIGN <- "factorial"
 # would) is not yet loaded when this file runs. Resolving the functions when
 # the registry is called instead of when it is defined makes the order
 # irrelevant.
+# Order matters: families appear in the sidebar in the order they are first
+# used here, and designs in the order they are listed within a family.
 design_registry <- function() {
   list(
+    latin_hypercube = list(
+      label = "Latin hypercube",
+      family = "Space-Filling Designs",
+      ui = spacefilling_ui,
+      server = spacefilling_server
+    ),
     factorial = list(
       label = "Two-level factorial",
       family = "Screening designs",

@@ -316,3 +316,19 @@ So the dropdown offers what is structurally valid and FrF2's own message covers 
 - `with_run_order()` generates the run-order permutation with `sample()`. This is deliberate and not a reimplementation: FrF2's `randomize` permutes the design rows, where this keeps rows in standard order and adds a run-order column, which is what keeps generators deterministic and snapshot-testable.
 
 123 tests pass, no skips.
+
+## Follow-up: num_runs and num_factors throughout
+
+The two quantities every design shares are now named consistently: `num_runs` for the number of runs and `num_factors` for the number of experimental factors. This replaces the terse `k`, `n` and `runs` the code had inherited from the original `designs.R`. It covers function arguments, local variables and Shiny input ids alike, so `input$num_factors` feeds `factorial_design(num_factors = )`.
+
+Renamed: `factorial_design()`, `run_choices()`, `catalog_entries()`, `block_choices()`, `factor_labels()`, `parse_factor_names()`, `usable_factor_count()`, the locals in `factorial_support` and `with_run_order()`, and the `num_factors` / `num_runs` inputs in the factorial module. `center_point_text(n, total)` became `center_point_text(num_center, num_runs)` while its arguments were being touched.
+
+Three things deliberately left alone:
+
+- **Arguments of the underlying packages.** `FrF2::FrF2(nruns = , nfactors = )` is still called as FrF2 names it. Renaming at that boundary would hide which name belongs to whom.
+- **`names0(num, prefix)`**, which keeps the signature it was supplied with.
+- **`FACTORIAL_MAX_RUNS`**, a constant that already reads as a maximum number of runs; `FACTORIAL_MAX_NUM_RUNS` would be worse.
+
+Historical sections of this plan still refer to `k` and `runs` where they describe work done at the time. That is the record of what happened, so it stays as written.
+
+All 149 tests pass. The 19 snapshot lines that changed are the expressions `expect_snapshot()` records, not results — every error message and printed output is byte-identical, checked by diffing them against the previous commit.

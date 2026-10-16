@@ -112,22 +112,22 @@ names0 <- function(num, prefix = "x") {
 # What this is *not* used for is a user's own factor names. Those reach the
 # columns only; the alias notation stays canonical, so renaming a factor to
 # "Temp" never turns the defining relation into prose.
-factor_labels <- function(n) {
-  if (n <= length(LETTERS)) {
-    LETTERS[seq_len(n)]
+factor_labels <- function(num_factors) {
+  if (num_factors <= length(LETTERS)) {
+    LETTERS[seq_len(num_factors)]
   } else {
-    names0(n)
+    names0(num_factors)
   }
 }
 
-# Turn the comma-separated "Factor names" box into exactly `n` usable names.
+# Turn the comma-separated "Factor names" box into exactly num_factors names.
 # Anything the user leaves out falls back to factor_labels(); extra names are
 # dropped; duplicates are made unique so two columns cannot share a header.
-parse_factor_names <- function(text, n) {
+parse_factor_names <- function(text, num_factors) {
   given <- trimws(strsplit(text %||% "", ",", fixed = TRUE)[[1]])
   given <- given[nzchar(given)]
-  names <- factor_labels(n)
-  supplied <- seq_len(min(length(given), n))
+  names <- factor_labels(num_factors)
+  supplied <- seq_len(min(length(given), num_factors))
   names[supplied] <- given[supplied]
   make.unique(names, sep = "_")
 }
@@ -136,21 +136,26 @@ parse_factor_names <- function(text, n) {
 # standard order; randomizing permutes the order the runs are performed in and
 # never the rows themselves, which is what keeps generator output snapshottable.
 with_run_order <- function(design, randomize) {
-  n <- nrow(design$table)
+  num_runs <- nrow(design$table)
   design$table <- cbind(
-    `Standard order` = seq_len(n),
-    `Run order` = if (randomize) sample(n) else seq_len(n),
+    `Standard order` = seq_len(num_runs),
+    `Run order` = if (randomize) sample(num_runs) else seq_len(num_runs),
     design$table
   )
   design
 }
 
 # The center-point clause of a design title, or "" when there are none.
-center_point_text <- function(n, total) {
-  if (n < 1) {
+center_point_text <- function(num_center, num_runs) {
+  if (num_center < 1) {
     return("")
   }
-  sprintf(" + %d center point%s (%d total)", n, if (n == 1) "" else "s", total)
+  sprintf(
+    " + %d center point%s (%d total)",
+    num_center,
+    if (num_center == 1) "" else "s",
+    num_runs
+  )
 }
 
 # Significant figures shown in the table.
