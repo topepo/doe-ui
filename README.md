@@ -41,7 +41,7 @@ One design is one Shiny module whose server returns a reactive yielding a `doe_d
 2. Write `R/<name>-module.R` with `<name>_ui(id)` and `<name>_server(id)`. The UI builds the inputs from the design's own limits and choices; the server returns a reactive yielding the `doe_design`.
 3. Add one entry to `design_registry()` in `R/registry.R`.
 
-`R/factorial-design.R` is the reference implementation.
+`R/factorial-design.R` is the reference implementation, and `inst/adding-designs.md` is a step-by-step guide to the whole job — written as instructions to an LLM, but worth reading first either way. It carries the procedure and the traps; the contract below stays the source of truth for the shapes.
 
 ### The helper contract
 
