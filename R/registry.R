@@ -14,6 +14,13 @@ DEFAULT_DESIGN <- "factorial"
 # used here, and designs in the order they are listed within a family.
 design_registry <- function() {
   list(
+    lhs_random = list(
+      label = "Latin hypercubes (Random)",
+      family = "Space-Filling Designs",
+      ui = spacefilling_rand_ui,
+      server = spacefilling_rand_server,
+      packages = spacefilling_rand_get_packages
+    ),
     lhs_optimized = list(
       label = "Latin hypercubes (Optimized)",
       family = "Space-Filling Designs",
@@ -21,12 +28,12 @@ design_registry <- function() {
       server = spacefilling_opt_server,
       packages = spacefilling_opt_get_packages
     ),
-    lhs_random = list(
-      label = "Latin hypercubes (Random)",
+    uniform = list(
+      label = "Uniform designs",
       family = "Space-Filling Designs",
-      ui = spacefilling_rand_ui,
-      server = spacefilling_rand_server,
-      packages = spacefilling_rand_get_packages
+      ui = spacefilling_unif_ui,
+      server = spacefilling_unif_server,
+      packages = spacefilling_unif_get_packages
     ),
     factorial = list(
       label = "Two-level factorial",
@@ -47,9 +54,11 @@ design_families <- function(registry = design_registry()) {
 # The picker is one accordion panel per family with a radio group inside each.
 # Exactly one design is selected across the whole app, so choosing in one
 # family clears every other.
-picker_ui <- function(id,
-                      registry = design_registry(),
-                      selected = DEFAULT_DESIGN) {
+picker_ui <- function(
+  id,
+  registry = design_registry(),
+  selected = DEFAULT_DESIGN
+) {
   ns <- shiny::NS(id)
   families <- design_families(registry)
 
@@ -88,9 +97,11 @@ picker_ui <- function(id,
 }
 
 # Returns a reactive holding the id of the selected design.
-picker_server <- function(id,
-                          registry = design_registry(),
-                          default = DEFAULT_DESIGN) {
+picker_server <- function(
+  id,
+  registry = design_registry(),
+  default = DEFAULT_DESIGN
+) {
   shiny::moduleServer(id, function(input, output, session) {
     families <- design_families(registry)
     inputs <- paste0("family_", seq_along(families))
@@ -100,16 +111,20 @@ picker_server <- function(id,
     # iteration, so a for loop here would leave every observer pointing at the
     # last family.
     lapply(seq_along(inputs), function(i) {
-      shiny::observeEvent(input[[inputs[i]]], {
-        selected(input[[inputs[i]]])
-        for (other in inputs[-i]) {
-          # This cannot feed back. Clearing a family that is already clear
-          # sends an identical value, which Shiny's client drops before it
-          # reaches the server; the one family that did hold a selection sends
-          # NULL, which ignoreNULL stops before the handler body runs.
-          shiny::updateRadioButtons(session, other, selected = character(0))
-        }
-      }, ignoreNULL = TRUE)
+      shiny::observeEvent(
+        input[[inputs[i]]],
+        {
+          selected(input[[inputs[i]]])
+          for (other in inputs[-i]) {
+            # This cannot feed back. Clearing a family that is already clear
+            # sends an identical value, which Shiny's client drops before it
+            # reaches the server; the one family that did hold a selection sends
+            # NULL, which ignoreNULL stops before the handler body runs.
+            shiny::updateRadioButtons(session, other, selected = character(0))
+          }
+        },
+        ignoreNULL = TRUE
+      )
     })
 
     selected

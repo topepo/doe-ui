@@ -6,7 +6,7 @@ test_that("families appear in registry order, space-filling first", {
   )
   expect_equal(
     families[["Space-Filling Designs"]],
-    c("lhs_optimized", "lhs_random")
+    c("lhs_optimized", "uniform", "lhs_random")
   )
   expect_equal(families[["Screening designs"]], "factorial")
 })
@@ -181,4 +181,36 @@ test_that("factor names get a text area, not a single-line input", {
       label = sprintf("%s factor names input", id)
     )
   }
+})
+
+test_that("uniform designs are separate from the Latin hypercubes", {
+  # A uniform design minimises discrepancy, not an LHC criterion, so it is its
+  # own entry rather than a fourth type under the optimized hypercubes.
+  expect_false("uniform" %in% spacefilling_opt_get_types(6))
+  expect_setequal(
+    unname(spacefilling_opt_get_types(6)),
+    c("audze_eglais", "max_min_l1", "max_min_l2")
+  )
+  # Having one criterion, it offers no type to choose.
+  expect_length(spacefilling_unif_get_types(6), 0)
+})
+
+test_that("the split gives the two designs different factor ranges", {
+  # This is why one entry could not cover both: past ten factors sfd has only
+  # uniform designs, so a combined entry would claim 2-15 and fail on 11-15.
+  expect_equal(spacefilling_opt_get_limits()$num_factors, c(2L, 10L))
+  expect_equal(spacefilling_unif_get_limits()$num_factors, c(2L, 15L))
+  expect_length(spacefilling_opt_get_types(12), 0)
+  expect_gt(length(spacefilling_unif_get_num_runs_choices(12)), 0)
+})
+
+test_that("the uniform module builds without a type", {
+  shiny::testServer(spacefilling_unif_server, args = list(id = "uniform"), {
+    session$setInputs(num_factors = 12, num_runs = "20", factor_names = "")
+    design <- session$getReturned()()
+    expect_s3_class(design, "doe_design")
+    expect_equal(dim(design$table), c(20L, 12L))
+    expect_match(design$title, "^Uniform design")
+    expect_equal(range(unlist(design$table)), c(0, 1))
+  })
 })

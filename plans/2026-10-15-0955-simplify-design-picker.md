@@ -437,3 +437,22 @@ The inputs carry no explicit width and already stretch to the card, so height wa
 `rename_factors()` now splits on newlines as well as commas. A text area invites one name per line, and without this the whole block would have arrived as a single factor name. Verified end to end: `"Temp\nPressure\nTime\nCatalyst"` reaches the table as four columns.
 
 242 tests pass, no skips.
+
+## Follow-up: uniform designs split out of the Latin hypercubes
+
+A uniform design minimises discrepancy from a uniform distribution over the region. That is a different criterion from the three the sfd package optimises a Latin hypercube against, and the result is not an LHC, so it is now its own registry entry — `Uniform designs` — rather than a fourth type under `Latin hypercubes (Optimized)`.
+
+The split is not only a matter of naming. The two reach different distances:
+
+| | factor counts | types to choose |
+| --- | --- | --- |
+| Latin hypercubes (Optimized) | 2 to 10 | Audze-Eglais, Max-Min (L1), Max-Min (L2) |
+| Uniform designs | 2 to 15 | none |
+
+Past ten factors sfd holds **only** uniform designs. The combined entry therefore claimed 2 to 15 factors and would have failed across 11 to 15 for every criterion a user could actually select — the stale-type handling papered over it by falling back to uniform. Both ranges are derived from the installed library by `sfd_factor_range()`, not written down, so they follow whichever sfd is present.
+
+Having a single criterion, the uniform design returns no types at all and `spacefilling_unif_create()` takes no `type` argument — the contract already allows an empty `_get_types()`, and this is a cleaner instance of it than the factorial's full-factorial case.
+
+The shared work moved into `sfd_create()` and `sfd_table()`: the two sfd designs differ in which types they offer, not in how a design is built. `SFD_SUPPORT` now summarises all fourteen library tables once when the file is sourced, about a tenth of a second, rather than rescanning on every keystroke.
+
+262 tests pass, no skips.

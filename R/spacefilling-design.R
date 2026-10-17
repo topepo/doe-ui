@@ -15,12 +15,14 @@
 
 # ---- Shared ------------------------------------------------------------------
 
-# The sfd library is a list of tables, one per factor count, indexed from two
-# factors up. Each table holds one row per design point, tagged with its type
-# and the number of points in that design.
-sfd_table <- function(num_factors) {
-  sfd::sfd_lib[[num_factors - 1]]
-}
+# What sfd holds, summarised once when Shiny sources this file: a list indexed
+# from two factors up, each element naming the run counts every type offers at
+# that many factors. Scanning all fourteen tables takes about a tenth of a
+# second, which is worth paying once rather than on every keystroke.
+SFD_SUPPORT <- lapply(seq_along(sfd::sfd_lib), function(i) {
+  designs <- sfd::sfd_lib[[i]]
+  lapply(split(designs$num_points, designs$type), function(x) sort(unique(x)))
+})
 
 # The package's type ids, and the labels we show for them. One map, read in
 # both directions, so a new type in a future sfd version shows up as a missing
@@ -32,79 +34,65 @@ SFD_TYPE_LABELS <- c(
   uniform = "Uniform"
 )
 
+# Which types belong to which design. The three criteria below optimise a
+# Latin hypercube; a uniform design is built to a different criterion and is
+# not an LHC at all, so it is a design of its own rather than a type within
+# one.
+#
+# They differ in reach as well as in kind: the LHC criteria exist for 2 to 10
+# factors, uniform for 2 to 15. One entry covering both would have to claim
+# the wider range and then fail on most of it.
+SFD_LHC_TYPES <- c("audze_eglais", "max_min_l1", "max_min_l2")
+SFD_UNIFORM_TYPES <- "uniform"
+
 sfd_labels <- function(ids) {
   unname(SFD_TYPE_LABELS[ids])
 }
 
-# Returns: a named list, one element per type available at this many factors,
-# each a sorted integer vector of the run counts that type offers. Names are
-# the package's type ids.
-#
-#   $max_min_l1
-#   [1] 4 5 6 7
-#
-# lapply() rather than apply(): apply() over the rows of a table simplifies to
-# a matrix when there is only one row, and from 11 factors up only the uniform
-# type survives. Lookup by name then fails with "subscript out of bounds",
-# precisely at the top of the supported range.
-sfd_list <- function(num_factors) {
-  designs <- sfd_table(num_factors)
-  types <- sort(unique(designs$type))
-  stats::setNames(
-    lapply(types, function(type) {
-      sort(unique(designs$num_points[designs$type == type]))
-    }),
-    types
-  )
-}
-
-# ---- Optimized (sfd) ---------------------------------------------------------
-
-# Returns: an unnamed character vector of package names.
-spacefilling_opt_get_packages <- function() {
-  "sfd"
-}
-
-# Returns: a named list of integer c(min, max) pairs.
-#
-# Read off the library rather than written down: it is indexed from two factors
-# up, so the largest it covers is one past its length.
-spacefilling_opt_get_limits <- function() {
-  list(num_factors = c(2L, length(sfd::sfd_lib) + 1L))
-}
-
-# Returns: a character vector of sfd type ids named by display label, empty
-# when this factor count has none.
-spacefilling_opt_get_types <- function(num_factors) {
-  ids <- names(sfd_list(num_factors))
-  ids <- ids[ids %in% names(SFD_TYPE_LABELS)]
-  stats::setNames(ids, sfd_labels(ids))
-}
-
-# Returns: a numeric vector of run counts, ascending, unnamed — the number is
-# its own label.
-#
-# Depends on the type as well as the factor count, because the four types do
-# not cover the same sizes: at six factors Max-Min (L1) offers four run counts
-# and Audze-Eglais offers ninety-nine.
-spacefilling_opt_get_num_runs_choices <- function(num_factors, type) {
-  available <- sfd_list(num_factors)
-  if (length(type) != 1 || is.na(type) || !type %in% names(available)) {
-    return(numeric(0))
+# Returns: a named list of the run counts each of `types` offers at this many
+# factors, keyed by the package's type ids. Types with nothing here are left
+# out, so the result can be empty.
+sfd_list <- function(num_factors, types = names(SFD_TYPE_LABELS)) {
+  index <- num_factors - 1
+  if (index < 1 || index > length(SFD_SUPPORT)) {
+    return(list())
   }
-  as.numeric(available[[type]])
+  available <- SFD_SUPPORT[[index]]
+  available[intersect(types, names(available))]
 }
 
-# Returns: a doe_design.
-spacefilling_opt_create <- function(
-  num_factors,
-  num_runs,
-  type,
-  factor_names = default_factor_names(
-    num_factors
-  )
-) {
-  limits <- spacefilling_opt_get_limits()$num_factors
+# Returns: c(min, max) of the factor counts where any of `types` has a design.
+# Derived rather than written down, so it follows the installed sfd.
+sfd_factor_range <- function(types) {
+  covered <- which(vapply(
+    SFD_SUPPORT,
+    function(available) any(types %in% names(available)),
+    logical(1)
+  ))
+  range(covered) + 1L
+}
+
+# Build the table for one sfd design. Shared, because the optimized and
+# uniform designs differ in which types they offer, not in how they are built.
+sfd_table <- function(num_factors, num_runs, type, factor_names) {
+  points <- sfd::get_design(num_factors, num_runs, type)
+  # sfd returns integer levels 1 to num_runs; rescale to [0, 1] so these read
+  # on the same scale as the random design.
+  #
+  # Divided by num_runs rather than each column's own maximum: every column is
+  # a permutation of 1 to n so the two agree today, but the per-column version
+  # would silently rescale each factor differently if that ever stopped
+  # holding.
+  table <- tibble::as_tibble(points)
+  table[] <- lapply(table, function(level) (level - 1) / (num_runs - 1))
+  names(table) <- factor_names
+  table
+}
+
+# Validate the options shared by both sfd designs, then build. `types` is the
+# set this design offers.
+sfd_create <- function(num_factors, num_runs, type, factor_names, types) {
+  limits <- sfd_factor_range(types)
   stop_unless(
     length(num_factors) == 1 &&
       !is.na(num_factors) &&
@@ -115,24 +103,21 @@ spacefilling_opt_create <- function(
     stop_out_of_range(num_factors, limits, "Number of factors")
   }
 
-  types <- spacefilling_opt_get_types(num_factors)
-  if (is.null(type)) {
-    type <- unname(types[1])
-  }
-  if (!type %in% types) {
+  available_types <- sfd_list(num_factors, types)
+  if (!type %in% names(available_types)) {
     stop_unavailable(
       type,
-      types,
+      stats::setNames(names(available_types), sfd_labels(names(available_types))),
       "design",
       sprintf("%d factors", num_factors)
     )
   }
 
-  available <- spacefilling_opt_get_num_runs_choices(num_factors, type)
-  if (!num_runs %in% available) {
+  available_runs <- as.numeric(available_types[[type]])
+  if (!num_runs %in% available_runs) {
     stop_unavailable(
       num_runs,
-      available,
+      available_runs,
       "run count",
       sprintf("%s in %d factors", sfd_labels(type), num_factors)
     )
@@ -146,23 +131,63 @@ spacefilling_opt_create <- function(
     )
   )
 
-  points <- sfd::get_design(num_factors, num_runs, type)
-  # sfd returns integer levels 1 to num_runs; rescale to [0, 1] so this design
-  # reads on the same scale as the random one.
-  #
-  # Divided by num_runs rather than each column's own maximum: every column of
-  # a Latin hypercube is a permutation of 1 to n so the two agree today, but
-  # the per-column version would silently rescale each factor differently if
-  # that ever stopped holding. Base R rather than purrr::map_dfc(), which is
-  # superseded and would add a dependency for one line.
-  table <- tibble::as_tibble(points)
-  table[] <- lapply(table, function(level) (level - 1) / (num_runs - 1))
-  names(table) <- factor_names
+  sfd_table(num_factors, num_runs, type, factor_names)
+}
 
+# ---- Optimized Latin hypercubes (sfd) ----------------------------------------
+
+# Returns: an unnamed character vector of package names.
+spacefilling_opt_get_packages <- function() {
+  "sfd"
+}
+
+# Returns: a named list of integer c(min, max) pairs.
+spacefilling_opt_get_limits <- function() {
+  list(num_factors = sfd_factor_range(SFD_LHC_TYPES))
+}
+
+# Returns: a character vector of sfd type ids named by display label, empty
+# when this factor count has none.
+spacefilling_opt_get_types <- function(num_factors) {
+  ids <- names(sfd_list(num_factors, SFD_LHC_TYPES))
+  stats::setNames(ids, sfd_labels(ids))
+}
+
+# Returns: a numeric vector of run counts, ascending, unnamed.
+#
+# Depends on the type as well as the factor count, because the criteria do not
+# cover the same sizes: at six factors Max-Min (L1) offers four run counts and
+# Audze-Eglais offers ninety-nine.
+spacefilling_opt_get_num_runs_choices <- function(num_factors, type) {
+  available <- sfd_list(num_factors, SFD_LHC_TYPES)
+  if (length(type) != 1 || is.na(type) || !type %in% names(available)) {
+    return(numeric(0))
+  }
+  as.numeric(available[[type]])
+}
+
+# Returns: a doe_design.
+spacefilling_opt_create <- function(num_factors,
+                                    num_runs,
+                                    type,
+                                    factor_names = default_factor_names(
+                                      num_factors
+                                    )) {
+  types <- spacefilling_opt_get_types(num_factors)
+  if (is.null(type)) {
+    type <- unname(types[1])
+  }
+  table <- sfd_create(
+    num_factors,
+    num_runs,
+    type,
+    factor_names,
+    SFD_LHC_TYPES
+  )
   new_design(
     table,
     sprintf(
-      "%s Latin hypercube – %d factors, %d runs",
+      "%s Latin hypercube \u2013 %d factors, %d runs",
       sfd_labels(type),
       num_factors,
       num_runs
@@ -176,9 +201,73 @@ spacefilling_opt_create <- function(
 
 # Returns: an unnamed character vector of notes, or character(0).
 #
-# The notes are built in _create() from the type and size, since sfd returns a
-# bare table with no metadata attached.
+# The notes are built in _create(), since sfd returns a bare table with no
+# metadata attached.
 spacefilling_opt_get_notes <- function(design) {
+  character(0)
+}
+
+# ---- Uniform designs (sfd) ---------------------------------------------------
+#
+# A uniform design minimises discrepancy from a uniform distribution over the
+# region. That is a different criterion from the Latin hypercube ones above,
+# and the result is not an LHC, so it is a design in its own right rather than
+# a type within one. It also reaches further: 2 to 15 factors against 2 to 10.
+
+# Returns: an unnamed character vector of package names.
+spacefilling_unif_get_packages <- function() {
+  "sfd"
+}
+
+# Returns: a named list of integer c(min, max) pairs.
+spacefilling_unif_get_limits <- function() {
+  list(num_factors = sfd_factor_range(SFD_UNIFORM_TYPES))
+}
+
+# Returns: an empty character vector. There is a single criterion here, so
+# there is nothing to choose between.
+spacefilling_unif_get_types <- function(...) {
+  stats::setNames(character(0), character(0))
+}
+
+# Returns: a numeric vector of run counts, ascending, unnamed.
+spacefilling_unif_get_num_runs_choices <- function(num_factors) {
+  available <- sfd_list(num_factors, SFD_UNIFORM_TYPES)
+  if (length(available) == 0) {
+    return(numeric(0))
+  }
+  as.numeric(available[[SFD_UNIFORM_TYPES]])
+}
+
+# Returns: a doe_design. No type argument: there is only one.
+spacefilling_unif_create <- function(num_factors,
+                                     num_runs,
+                                     factor_names = default_factor_names(
+                                       num_factors
+                                     )) {
+  table <- sfd_create(
+    num_factors,
+    num_runs,
+    SFD_UNIFORM_TYPES,
+    factor_names,
+    SFD_UNIFORM_TYPES
+  )
+  new_design(
+    table,
+    sprintf(
+      "Uniform design \u2013 %d factors, %d runs",
+      num_factors,
+      num_runs
+    ),
+    sprintf(
+      "Precomputed by the sfd package, %d levels rescaled to 0-1.",
+      num_runs
+    )
+  )
+}
+
+# Returns: an unnamed character vector of notes, or character(0).
+spacefilling_unif_get_notes <- function(design) {
   character(0)
 }
 
