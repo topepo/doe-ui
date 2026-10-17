@@ -14,12 +14,19 @@ DEFAULT_DESIGN <- "factorial"
 # used here, and designs in the order they are listed within a family.
 design_registry <- function() {
   list(
-    latin_hypercube = list(
-      label = "Latin hypercube",
+    lhs_optimized = list(
+      label = "Latin hypercubes (Optimized)",
       family = "Space-Filling Designs",
-      ui = spacefilling_ui,
-      server = spacefilling_server,
-      packages = spacefilling_get_packages
+      ui = spacefilling_opt_ui,
+      server = spacefilling_opt_server,
+      packages = spacefilling_opt_get_packages
+    ),
+    lhs_random = list(
+      label = "Latin hypercubes (Random)",
+      family = "Space-Filling Designs",
+      ui = spacefilling_rand_ui,
+      server = spacefilling_rand_server,
+      packages = spacefilling_rand_get_packages
     ),
     factorial = list(
       label = "Two-level factorial",

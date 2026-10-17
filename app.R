@@ -14,7 +14,7 @@
 # What the app itself needs. Each design names its own packages through
 # {design}_get_packages(), so adding a design that wraps a new package does not
 # mean editing a list here.
-APP_PACKAGES <- c("bslib", "reactable", "shiny")
+APP_PACKAGES <- c("bslib", "reactable", "shiny", "purrr", "tibble")
 
 local({
   required <- unique(c(

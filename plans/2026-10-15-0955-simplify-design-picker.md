@@ -359,3 +359,36 @@ Three shapes in that table exist because the deferred designs disagree with each
 Renamed along the way: `factor_labels()` to `default_factor_names()`, `parse_factor_names()` to `rename_factors()`, `run_choices()` to `factorial_get_num_runs_choices()`, `block_choices()` to `factorial_get_blocks_choices()`, `catalog_entries()` to `factorial_catalog_entries()`, `describe_entry()` to `factorial_type_label()`, `alias_notes()` to `factorial_get_notes()`, and `factorial_design()` to `factorial_create()`.
 
 168 tests pass, no skips.
+
+## Follow-up: output formats documented and pinned
+
+Reading `factorial_get_num_runs_choices()` did not say what it had to return, which is a problem for anyone implementing the next design. Every contract function now states its shape directly above it, the README gives the same table with types, and `tests/testthat/test-contract.R` pins all of it so the documentation cannot drift from the code.
+
+The one worth stating twice, and the reason the tests exist: **the vector holds the values and its names are the labels.** Getting that backwards produces a dropdown that looks correct and submits nonsense, because Shiny takes names as labels and values as values. Both `_get_{option}_choices()` and `_get_types()` follow it.
+
+Documenting the shapes turned up an inconsistency worth keeping rather than fixing: `factorial_get_num_runs_choices()` is named and `factorial_get_blocks_choices()` is not. Both work, since Shiny shows the value when there is no name. The contract now says names are *optional* on `_choices()` — supply them only when the value alone does not read well. A run count earns `16 runs (2^(6-2) fraction)`; a block count does not.
+
+Two things the tests documented rather than changed:
+
+- `factorial_get_num_runs_choices(1)` is **not** empty. One factor is outside `get_limits()`, but 2^1 is within the run ceiling, so a two-run design is offered. The empty case is a factor count past what the catalog covers.
+- `factorial_get_notes()` handed a `doe_design` instead of the package's object returns `character(0)` rather than erroring, because the attribute it reads is simply absent. That makes the README's "takes the object the package returned" load-bearing: calling it at the wrong point in construction loses the notes silently instead of failing.
+
+213 tests pass, no skips.
+
+## Follow-up: two space-filling designs, and three bugs in the sfd lookup
+
+The space-filling scaffold became two registry entries in one family, `Latin hypercubes (Optimized)` (sfd) and `Latin hypercubes (Random)` (DiceDesign). Two entries rather than one design with a type, because switching between them changes which inputs are on screen: the optimized one picks a type and then a run count that depends on it, while the random one takes any run count in range and has no type at all. Their limits differ too — 2 to 15 factors against 2 to 50 — which a single entry could not express.
+
+Multiple designs per family needed no change to the registry: `design_families()` already groups by the `family` string and the picker builds one radio group per family.
+
+### Three defects in the draft sfd lookup
+
+**`sfd_list()` returned indices where it meant run counts.** `which(x != 0)` yields positions named by the dimnames, so `Max-Min (L1)` at six factors came back as `c("4" = 3, "5" = 4, "6" = 5, "7" = 6)` — the names were the run counts and the values were column positions. Fed to a dropdown that is precisely the failure the contract warns about: it displays correctly and submits nonsense. Values are now the run counts.
+
+**`apply()` collapsed to a matrix from 11 factors up.** `apply()` over the rows of a table simplifies when there is a single row, and from eleven factors only the `uniform` type survives, so `sfd_list(11)[["Uniform"]]` failed with `subscript out of bounds` — exactly at the top of the supported range. Now `lapply()` over the types.
+
+**The factor range was understated.** `length(sfd::sfd_lib) - 1` gives 13, but the library is indexed from two factors up, so its fourteen elements reach **15** factors. `spacefilling_opt_get_limits()` now reads `length(sfd_lib) + 1L`.
+
+The type availability is worth knowing: all four types exist from 2 to 10 factors, and only `uniform` from 11 to 15. So a type genuinely does go stale when the factor count crosses ten, which the module handles by pausing rather than silently substituting, and which has a test.
+
+227 tests pass, no skips.

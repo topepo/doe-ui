@@ -11,10 +11,16 @@
 #   factorial_get_types()               the variants to choose between
 #   factorial_create()                  builds the doe_design
 #   factorial_get_notes()               what the package says about the result
+#
+# Each states the shape it returns above it. The one worth reading twice is the
+# *_choices() pair: the vector holds the values, and its names are the labels.
+# Getting that backwards produces a dropdown that looks right and submits
+# nonsense, because Shiny takes names as labels and values as values.
 
-# The packages this design needs. Per design rather than one global list,
-# because each design wraps a different package and the app should be able to
-# name the one that is actually missing.
+# Returns: an unnamed character vector of package names.
+#
+# Per design rather than one global list, because each design wraps a different
+# package and the app should be able to name the one actually missing.
 factorial_get_packages <- function() {
   c("DoE.base", "FrF2")
 }
@@ -50,7 +56,9 @@ factorial_factor_range <- local({
   range(c(catalogued, unlist(full_only)))
 })
 
-# The integer range of each count option, as a named list.
+# Returns: a named list of integer vectors of length 2, each c(min, max)
+# inclusive. Names are option names, so this design gives
+# list(num_factors = c(2L, 127L)).
 #
 # A named list rather than a single range because not every design has one
 # axis: a crossed array has separate control and noise factor counts, and a
@@ -59,9 +67,17 @@ factorial_get_limits <- function() {
   list(num_factors = factorial_factor_range)
 }
 
-# Run counts available for num_factors factors: the catalogued fractions, plus
-# the full factorial, when it is no larger than the biggest design the catalog
-# holds.
+# Returns: a numeric vector of run counts, ascending, named by the label to
+# show. Values are what gets passed back as num_runs; names are display only:
+#
+#   8 runs (2^(6-3) fraction)   16 runs (2^(6-2) fraction)
+#                           8                           16
+#
+# Empty when this design supports no run count at that many factors. Feeds
+# updateSelectInput(choices = ) directly.
+#
+# The run counts are the catalogued fractions plus the full factorial, when it
+# is no larger than the biggest design the catalog holds.
 #
 # These are read off the catalog rather than computed as a span of powers of
 # two. The catalog is irregular: 34 factors has a 2048-run design but no
@@ -130,10 +146,15 @@ factorial_type_label <- function(name, entry, max_generators = 6) {
   )
 }
 
-# The design variants available at this size, as a character vector of catalog
-# ids named by the label to show. Empty when there is nothing to choose: a full
-# factorial has no catalog entry, and most other designs have no type at all,
-# so callers must handle a zero-length result.
+# Returns: a character vector of catalog ids, best first, named by the label to
+# show. Same values-and-names convention as the *_choices() helpers:
+#
+#   Resolution IV: E=ABC, F=ABD (3 words of length 4)
+#                                            "6-2.1"
+#
+# Zero-length when there is nothing to choose — a full factorial has no catalog
+# entry, and most other designs have no type at all — so callers must handle an
+# empty result rather than assuming at least one.
 factorial_get_types <- function(num_factors, num_runs) {
   entries <- factorial_catalog_entries(num_factors, num_runs)
   if (length(entries) == 0) {
@@ -149,6 +170,10 @@ factorial_get_types <- function(num_factors, num_runs) {
   )
 }
 
+# Returns: an unnamed character vector, one note per line to show under the
+# title, or character(0) when there is nothing to say. Takes the object the
+# package returned, not a doe_design.
+#
 # The alias structure FrF2 attaches to every design it builds, under
 # attr(design, "design.info")$aliased. Reported, not derived.
 #
@@ -191,8 +216,13 @@ factorial_get_notes <- function(design) {
   notes
 }
 
-# Block counts FrF2 will consider, by its own two rules: a power of two, and
-# no more blocks than half the run size.
+# Returns: a numeric vector of block counts, ascending, unnamed — the number
+# is its own label, so there is nothing to add. Names are optional across the
+# *_choices() helpers; supply them only when the value alone does not read
+# well, as the run counts do.
+#
+# Block counts are those FrF2 will consider, by its own two rules: a power of
+# two, and no more blocks than half the run size.
 #
 # Whether a *particular* count works also depends on the design — FrF2 refuses
 # a blocking that would confound a two-factor interaction with blocks, so 4
@@ -205,6 +235,10 @@ factorial_get_blocks_choices <- function(num_runs) {
   2^(0:floor(log2(num_runs / 2)))
 }
 
+# Returns: a doe_design — see new_design(). The table holds one row per run in
+# standard order, with FrF2's block column first when there is one; the order
+# columns are added later, by the app.
+#
 # A two-level factorial design.
 #
 #   num_factors  within factorial_get_limits()$num_factors

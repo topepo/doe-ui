@@ -1,38 +1,162 @@
-# Scaffolding for space-filling designs.
+# The Shiny modules for the two space-filling designs.
 #
-# The registry entry, the family heading and the module contract are in place;
-# the computation is not. When it is added, it goes in R/spacefilling-design.R
-# as a pure function returning new_design(), and this server calls it — the
-# same split as R/factorial-design.R and R/factorial-module.R.
-#
-# Nothing here decides which package generates the design, or what options it
-# takes. Those arrive together with the generator.
+# They are separate because their options differ: the optimized design picks a
+# type and then a run count that depends on it, while the random one takes any
+# run count and has no type at all.
 
-# No package yet, so nothing to check. When the generator lands this returns
-# whichever package produces the design.
-spacefilling_get_packages <- function() {
-  character(0)
-}
+# ---- Optimized ---------------------------------------------------------------
 
-spacefilling_ui <- function(id) {
+spacefilling_opt_ui <- function(id) {
   ns <- shiny::NS(id)
+  limits <- spacefilling_opt_get_limits()$num_factors
   shiny::tagList(
-    shiny::p(
-      class = "text-muted small mb-0",
-      "Options appear here once this design is implemented."
+    shiny::numericInput(
+      ns("num_factors"),
+      "Number of factors",
+      value = 6,
+      min = limits[1],
+      max = limits[2]
+    ),
+    # Both are filled in by the server. The types depend on the factor count,
+    # and the run counts depend on the type as well.
+    shiny::selectInput(ns("type"), "Design", choices = NULL),
+    shiny::selectInput(ns("num_runs"), "Number of runs", choices = NULL),
+    shiny::textInput(
+      ns("factor_names"),
+      "Factor names",
+      placeholder = "Temp, Pressure, Time — blank for A, B, C"
     )
   )
 }
 
-spacefilling_server <- function(id) {
+# Is this a factor count the sfd library covers?
+usable_opt_factor_count <- function(num_factors) {
+  limits <- spacefilling_opt_get_limits()$num_factors
+  isTRUE(
+    length(num_factors) == 1 &&
+      !is.na(num_factors) &&
+      num_factors == round(num_factors) &&
+      num_factors >= limits[1] &&
+      num_factors <= limits[2]
+  )
+}
+
+spacefilling_opt_server <- function(id) {
   shiny::moduleServer(id, function(input, output, session) {
-    # The contract is a reactive yielding a doe_design. Until there is one,
-    # this pauses with a message, which the app shows in place of the table.
+    shiny::observeEvent(input$num_factors, {
+      shiny::req(usable_opt_factor_count(input$num_factors))
+      shiny::updateSelectInput(
+        session,
+        "type",
+        choices = spacefilling_opt_get_types(input$num_factors)
+      )
+    })
+
+    # The type the user picked, once it is one this factor count offers. Just
+    # after the factor count changes the old value is briefly still there --
+    # and it really does go stale here, since only uniform survives past ten
+    # factors.
+    type <- shiny::reactive({
+      shiny::req(usable_opt_factor_count(input$num_factors), input$type)
+      shiny::req(input$type %in% spacefilling_opt_get_types(input$num_factors))
+      input$type
+    })
+
+    shiny::observeEvent(list(input$num_factors, type()), {
+      shiny::updateSelectInput(
+        session,
+        "num_runs",
+        choices = spacefilling_opt_get_num_runs_choices(
+          input$num_factors,
+          type()
+        )
+      )
+    })
+
     shiny::reactive({
       shiny::validate(shiny::need(
-        FALSE,
-        "Space-filling designs are not implemented yet."
+        usable_opt_factor_count(input$num_factors),
+        sprintf(
+          "Enter a whole number of factors from %d to %d.",
+          spacefilling_opt_get_limits()$num_factors[1],
+          spacefilling_opt_get_limits()$num_factors[2]
+        )
       ))
+      shiny::req(input$num_runs)
+      num_factors <- as.integer(input$num_factors)
+      num_runs <- as.numeric(input$num_runs)
+      shiny::req(
+        num_runs %in%
+          spacefilling_opt_get_num_runs_choices(num_factors, type())
+      )
+
+      design <- tryCatch(
+        spacefilling_opt_create(
+          num_factors = num_factors,
+          num_runs = num_runs,
+          type = type(),
+          factor_names = rename_factors(input$factor_names, num_factors)
+        ),
+        error = function(e) e
+      )
+      if (inherits(design, "error")) {
+        shiny::validate(shiny::need(FALSE, conditionMessage(design)))
+      }
+      design
+    })
+  })
+}
+
+# ---- Random ------------------------------------------------------------------
+
+spacefilling_rand_ui <- function(id) {
+  ns <- shiny::NS(id)
+  limits <- spacefilling_rand_get_limits()
+  shiny::tagList(
+    shiny::numericInput(
+      ns("num_factors"),
+      "Number of factors",
+      value = 6,
+      min = limits$num_factors[1],
+      max = limits$num_factors[2]
+    ),
+    # A plain number, not a dropdown: any run count in range is buildable, so
+    # there is no list to choose from.
+    shiny::numericInput(
+      ns("num_runs"),
+      "Number of runs",
+      value = 60,
+      min = limits$num_runs[1],
+      max = limits$num_runs[2]
+    ),
+    shiny::numericInput(ns("seed"), "Random seed", value = 1, min = 1),
+    shiny::textInput(
+      ns("factor_names"),
+      "Factor names",
+      placeholder = "Temp, Pressure, Time — blank for A, B, C"
+    )
+  )
+}
+
+spacefilling_rand_server <- function(id) {
+  shiny::moduleServer(id, function(input, output, session) {
+    shiny::reactive({
+      shiny::req(input$num_factors, input$num_runs, input$seed)
+      num_factors <- as.integer(input$num_factors)
+
+      design <- tryCatch(
+        spacefilling_rand_create(
+          num_factors = num_factors,
+          num_runs = as.integer(input$num_runs),
+          seed = as.integer(input$seed),
+          factor_names = rename_factors(input$factor_names, num_factors)
+        ),
+        error = function(e) e
+      )
+      if (inherits(design, "error")) {
+        shiny::validate(shiny::need(FALSE, conditionMessage(design)))
+      }
+      design
     })
   })
 }

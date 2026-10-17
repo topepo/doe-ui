@@ -4,7 +4,10 @@ test_that("families appear in registry order, space-filling first", {
     names(families),
     c("Space-Filling Designs", "Screening designs")
   )
-  expect_equal(families[["Space-Filling Designs"]], "latin_hypercube")
+  expect_equal(
+    families[["Space-Filling Designs"]],
+    c("lhs_optimized", "lhs_random")
+  )
   expect_equal(families[["Screening designs"]], "factorial")
 })
 
@@ -49,19 +52,52 @@ test_that("selecting in either family drives the selection", {
   # has no observable effect in testServer. It needs a browser.
 })
 
-test_that("the space-filling scaffold pauses with a message", {
-  shiny::testServer(spacefilling_server, args = list(id = "latin_hypercube"), {
+test_that("the optimized module builds from sfd once its inputs are set", {
+  shiny::testServer(spacefilling_opt_server, args = list(id = "lhs_optimized"), {
+    session$setInputs(num_factors = 6, type = "max_min_l2", factor_names = "")
+    # The run choices depend on the type, so they are not known until it is set.
+    session$setInputs(num_runs = "20")
+    design <- session$getReturned()()
+    expect_s3_class(design, "doe_design")
+    expect_equal(nrow(design$table), 20)
+    expect_equal(names(design$table), LETTERS[1:6])
+  })
+})
+
+test_that("a type that this factor count does not offer is dropped", {
+  shiny::testServer(spacefilling_opt_server, args = list(id = "lhs_optimized"), {
+    session$setInputs(num_factors = 6, type = "max_min_l1", num_runs = "4",
+                      factor_names = "")
+    expect_s3_class(session$getReturned()(), "doe_design")
+    # Past ten factors only uniform survives, so the held type goes stale.
+    session$setInputs(num_factors = 12)
     expect_error(session$getReturned()(), class = "shiny.silent.error")
   })
 })
 
-test_that("the app dispatches to the scaffold without erroring out", {
+test_that("the random module builds from DiceDesign", {
+  shiny::testServer(spacefilling_rand_server, args = list(id = "lhs_random"), {
+    session$setInputs(num_factors = 4, num_runs = 12, seed = 3, factor_names = "")
+    design <- session$getReturned()()
+    expect_s3_class(design, "doe_design")
+    expect_equal(dim(design$table), c(12L, 4L))
+    # Coded 0 to 1, unlike the optimized designs' integer levels.
+    expect_true(all(unlist(design$table) >= 0 & unlist(design$table) <= 1))
+  })
+})
+
+test_that("the app dispatches across families", {
   shiny::testServer(app_server, {
-    session$setInputs(`picker-family_1` = "latin_hypercube", randomize = FALSE)
-    expect_equal(selected(), "latin_hypercube")
-    # Pauses rather than crashes: the message lands in place of the table.
-    expect_error(current(), class = "shiny.silent.error")
-    # And switching back to a real design still works.
+    session$setInputs(`picker-family_1` = "lhs_random", randomize = FALSE)
+    expect_equal(selected(), "lhs_random")
+    session$setInputs(
+      `lhs_random-num_factors` = 4,
+      `lhs_random-num_runs` = 12,
+      `lhs_random-seed` = 1,
+      `lhs_random-factor_names` = ""
+    )
+    expect_s3_class(current(), "doe_design")
+    # And switching to another family still works.
     session$setInputs(`picker-family_2` = "factorial")
     session$setInputs(
       `factorial-num_factors` = 3,

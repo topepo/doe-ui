@@ -43,14 +43,38 @@ One design is one Shiny module whose server returns a reactive yielding a `doe_d
 
 ### The helper contract
 
-| function | returns |
-| --- | --- |
-| `{design}_get_packages()` | character vector of packages this design needs |
-| `{design}_get_limits()` | **named list** of integer ranges, one per count option |
-| `{design}_get_{option}_choices(...)` | valid values for an option whose range depends on other options |
-| `{design}_get_types(...)` | the variants to choose between, ids named by label — possibly none |
-| `{design}_create(...)` | the `doe_design`, built by the package |
-| `{design}_get_notes(design)` | what the package says about the result |
+| function | returns | may be empty |
+| --- | --- | --- |
+| `{design}_get_packages()` | unnamed `character` of package names | no |
+| `{design}_get_limits()` | named `list` of `integer` vectors of length 2, each `c(min, max)` inclusive | no |
+| `{design}_get_{option}_choices(...)` | `numeric` of valid values, ascending, optionally named by display label | yes |
+| `{design}_get_types(...)` | `character` of ids, best first, named by display label | yes |
+| `{design}_create(...)` | a `doe_design` — see `new_design()` | n/a |
+| `{design}_get_notes(design)` | unnamed `character`, one note per line | yes |
+
+**The vector holds the values; its names are the labels.** This is the one that bites, because getting it backwards produces a dropdown that looks correct and submits nonsense — Shiny takes names as labels and values as values. Both `_choices()` and `_get_types()` follow it:
+
+```
+> factorial_get_num_runs_choices(6)
+ 8 runs (2^(6-3) fraction) 16 runs (2^(6-2) fraction) 32 runs (2^(6-1) fraction)
+                         8                         16                         32
+
+> factorial_get_types(6, 16)
+Resolution IV: E=ABC, F=ABD (3 words of length 4)   Resolution III: E=AB, F=ACD ...
+                                          "6-2.1"                       "6-2.2"
+```
+
+Names are optional on `_choices()`. Supply them only when the value alone does not read well: run counts earn a label, block counts do not, and `factorial_get_blocks_choices()` returns a bare `c(1, 2, 4, 8)`.
+
+Three of the functions can legitimately return nothing, and callers must cope rather than assume at least one element — `_get_types()` especially, since a zero-length result is exactly how `factorial_create()` tells a full factorial from a fraction.
+
+`{design}_get_notes()` takes **the object the package returned**, not a `doe_design`. It runs during construction, since that is where the package's own metadata is still attached.
+
+A `doe_design` from `new_design(table, title, notes)` holds:
+
+- `table` — a plain `data.frame`, one row per run in standard order, carrying none of the package's attributes. The order columns are added later by the app, not here.
+- `title` — one line, shown above the table.
+- `notes` — `character`, zero or more lines shown underneath.
 
 Three of these have shapes that exist because the designs disagree with each other, so do not simplify them away:
 
