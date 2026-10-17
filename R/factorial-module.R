@@ -1,25 +1,42 @@
 # The Shiny module wrapping factorial_create(). The server returns a reactive
 # yielding a doe_design, which is the whole contract the app depends on.
 
-factorial_ui <- function(id) {
+# The factor count the panel opens on. Named, because the dependent dropdowns
+# below are built from it and the two must not drift apart.
+FACTORIAL_DEFAULT_FACTORS <- 6L
+
+factorial_ui <- function(id, num_factors = FACTORIAL_DEFAULT_FACTORS) {
   ns <- shiny::NS(id)
+  # Populated here rather than left empty for the server to fill. The
+  # observers below only fire when num_factors *changes*, and returning to a
+  # design rebuilds this UI with the same value, which Shiny's input dedup
+  # suppresses -- so the dropdowns would come back empty and stay empty until
+  # the factor count was nudged.
+  num_runs_choices <- factorial_get_num_runs_choices(num_factors)
+  blocks_choices <- factorial_get_blocks_choices(num_runs_choices[[1]])
   shiny::tagList(
     shiny::numericInput(
       ns("num_factors"),
       "Number of factors",
-      value = 6,
+      value = num_factors,
       min = factorial_get_limits()$num_factors[1],
       max = factorial_get_limits()$num_factors[2]
     ),
-    # Choices are filled in by the server, because they depend on num_factors.
-    shiny::selectInput(ns("num_runs"), "Number of runs", choices = NULL),
+    shiny::selectInput(
+      ns("num_runs"),
+      "Number of runs",
+      choices = num_runs_choices
+    ),
     shiny::selectInput(ns("center"), "Center points per block", choices = 0:5, selected = 0),
-    # Choices depend on the run count, so the server fills them in.
-    shiny::selectInput(ns("blocks"), "Blocks", choices = NULL),
+    shiny::selectInput(ns("blocks"), "Blocks", choices = blocks_choices),
     shiny::numericInput(ns("replications"), "Replications", value = 1, min = 1),
-    shiny::textInput(
+    # A text area rather than a single line: the list runs to one name per
+    # factor, and the comma-separated form gets long.
+    shiny::textAreaInput(
       ns("factor_names"),
       "Factor names",
+      rows = 3,
+      resize = "vertical",
       placeholder = "Temp, Pressure, Time — blank for A, B, C"
     ),
     # Unlike the dropdown above, this input's existence is conditional, not

@@ -34,9 +34,11 @@
     Code
       with_run_order(design, randomize = FALSE)$table
     Output
-        Standard order Run order  A  B
-      1              1         1 -1 -1
-      2              2         2  1 -1
+      # A tibble: 2 x 4
+        `Standard order` `Run order`     A     B
+                   <int>       <int> <dbl> <dbl>
+      1                1           1    -1    -1
+      2                2           2     1    -1
 
 # center_point_text pluralises and counts the total
 
@@ -58,18 +60,22 @@
     Code
       shown
     Output
-        Standard order Run order  A  B
-      1              1         1 -1  1
-      2              2         2  0  0
-      3              3         3  1 -1
+      # A tibble: 3 x 4
+        `Standard order` `Run order`     A     B
+                   <int>       <int> <dbl> <dbl>
+      1                1           1    -1     1
+      2                2           2     0     0
+      3                3           3     1    -1
 
 # display_table rounds to three significant figures, not decimals
 
     Code
       shown
     Output
+      # A tibble: 2 x 2
               x1      x2
-      1 0.333000 1230.00
+           <dbl>   <dbl>
+      1 0.333    1230   
       2 0.000123    1.68
 
 # a design prints its title, notes, and table
@@ -79,9 +85,11 @@
     Output
       A tiny design
         Defining relation: I = AB
-         A
-      1 -1
-      2  1
+      # A tibble: 2 x 1
+            A
+        <dbl>
+      1    -1
+      2     1
 
 # stop_unless reports the message it was given
 

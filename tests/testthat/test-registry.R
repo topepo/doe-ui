@@ -130,3 +130,55 @@ test_that("every design implements the helper contract it needs", {
   expect_length(limits$num_factors, 2)
   expect_true(limits$num_factors[1] < limits$num_factors[2])
 })
+
+test_that("no design's UI renders a dropdown with nothing in it", {
+  # The dependent dropdowns are filled by observers that only fire when their
+  # input *changes*. Returning to a design rebuilds its UI with the same
+  # values, which Shiny's input dedup suppresses, so anything left empty here
+  # stays empty on screen until the user nudges a field. Every select must
+  # therefore arrive with its choices already in place.
+  for (id in names(design_registry())) {
+    html <- as.character(design_registry()[[id]]$ui(id))
+    selects <- regmatches(
+      html,
+      gregexpr("<select[^>]*>.*?</select>", html)
+    )[[1]]
+    for (select in selects) {
+      input_id <- sub('.*id="([^"]+)".*', "\\1", select)
+      expect_true(
+        grepl("<option", select),
+        label = sprintf("%s has at least one option", input_id)
+      )
+    }
+  }
+})
+
+test_that("optimized designs are rescaled to 0-1 like the random ones", {
+  design <- spacefilling_opt_create(
+    num_factors = 6,
+    num_runs = 20,
+    type = "max_min_l2"
+  )
+  values <- unlist(design$table)
+  expect_equal(range(values), c(0, 1))
+  # A Latin hypercube keeps one level per run in every column, so rescaling
+  # must not collapse any of them.
+  expect_equal(length(unique(design$table[[1]])), 20)
+  # Divided by num_runs, not each column's own maximum, so every factor is on
+  # the same scale.
+  expect_true(all(vapply(design$table, max, numeric(1)) == 1))
+  expect_true(all(vapply(design$table, min, numeric(1)) == 0))
+})
+
+test_that("factor names get a text area, not a single-line input", {
+  # The list runs to one name per factor and gets long, so every design gives
+  # it room rather than a one-line box.
+  for (id in names(design_registry())) {
+    html <- as.character(design_registry()[[id]]$ui(id))
+    expect_match(
+      html,
+      sprintf('<textarea id="%s-factor_names"[^>]*rows="3"', id),
+      label = sprintf("%s factor names input", id)
+    )
+  }
+})

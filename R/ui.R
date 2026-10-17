@@ -2,7 +2,7 @@
 
 app_ui <- function() {
   bslib::page_sidebar(
-    title = "Design picker",
+    title = "Experimental Designs",
     theme = bslib::bs_theme(bootswatch = "yeti"),
     fillable = FALSE,
     sidebar = bslib::sidebar(width = 300, picker_ui("picker")),

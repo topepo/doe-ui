@@ -147,9 +147,16 @@ spacefilling_opt_create <- function(
   )
 
   points <- sfd::get_design(num_factors, num_runs, type)
-  # standardize to be on [0, 1]
-  points <- points |> purrr::map_dfc(~ (.x - 1) / (max(.x) - 1))
-  table <- as.data.frame(points, stringsAsFactors = FALSE)
+  # sfd returns integer levels 1 to num_runs; rescale to [0, 1] so this design
+  # reads on the same scale as the random one.
+  #
+  # Divided by num_runs rather than each column's own maximum: every column of
+  # a Latin hypercube is a permutation of 1 to n so the two agree today, but
+  # the per-column version would silently rescale each factor differently if
+  # that ever stopped holding. Base R rather than purrr::map_dfc(), which is
+  # superseded and would add a dependency for one line.
+  table <- tibble::as_tibble(points)
+  table[] <- lapply(table, function(level) (level - 1) / (num_runs - 1))
   names(table) <- factor_names
 
   new_design(
@@ -161,7 +168,7 @@ spacefilling_opt_create <- function(
       num_runs
     ),
     sprintf(
-      "Precomputed by the sfd package. Levels run from 1 to %d.",
+      "Precomputed by the sfd package, %d levels rescaled to 0-1.",
       num_runs
     )
   )
@@ -245,7 +252,7 @@ spacefilling_rand_create <- function(
     dimension = num_factors,
     seed = seed
   )
-  table <- as.data.frame(built$design, stringsAsFactors = FALSE)
+  table <- tibble::as_tibble(built$design, .name_repair = "minimal")
   names(table) <- factor_names
 
   new_design(

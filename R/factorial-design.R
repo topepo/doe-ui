@@ -390,7 +390,7 @@ factorial_create <- function(num_factors,
     }
   })
   names(columns) <- names(raw)
-  table <- as.data.frame(columns, stringsAsFactors = FALSE, check.names = FALSE)
+  table <- tibble::as_tibble(columns)
 
   new_design(
     table,

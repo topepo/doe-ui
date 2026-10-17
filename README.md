@@ -8,7 +8,7 @@ A Shiny interface to R's experimental design generators. Pick a design, set its 
 shiny::runApp()
 ```
 
-Needs R 4.4 or later and the packages `bslib`, `DoE.base`, `FrF2`, `reactable`, and `shiny`. The app checks for them on startup and tells you what to install.
+Needs R 4.4 or later and the packages `bslib`, `DiceDesign`, `DoE.base`, `FrF2`, `reactable`, `sfd`, `shiny` and `tibble`. The app checks for them on startup and names any that are missing — the per-design ones come from each `{design}_get_packages()`, so this list is derived rather than maintained by hand.
 
 ## Tests
 
@@ -28,6 +28,8 @@ Shiny sources everything in `R/` automatically, so there is nothing to `source()
 | `R/design.R` | The `doe_design` object and the helpers every design shares |
 | `R/factorial-design.R` | The two-level factorial generator — pure R, no Shiny |
 | `R/factorial-module.R` | Its Shiny module |
+| `R/spacefilling-design.R` | The two space-filling generators, optimized (sfd) and random (DiceDesign) |
+| `R/spacefilling-module.R` | Their Shiny modules |
 | `R/registry.R` | The design registry and the sidebar picker |
 | `R/ui.R`, `R/server.R` | The page, and how its pieces update each other |
 
@@ -72,7 +74,7 @@ Three of the functions can legitimately return nothing, and callers must cope ra
 
 A `doe_design` from `new_design(table, title, notes)` holds:
 
-- `table` — a plain `data.frame`, one row per run in standard order, carrying none of the package's attributes. The order columns are added later by the app, not here.
+- `table` — a `tibble`, one row per run in standard order, carrying none of the package's attributes. `new_design()` coerces whatever you hand it, so a generator need not. Note that coercion does **not** strip other attributes, so still build a clean table rather than passing the package's own object straight through. The order columns are added later by the app, not here.
 - `title` — one line, shown above the table.
 - `notes` — `character`, zero or more lines shown underneath.
 
@@ -87,6 +89,12 @@ Three of these have shapes that exist because the designs disagree with each oth
 Identify a type by the package's own id, not by position. `factorial_get_types()` returns FrF2 catalog ids like `6-2.1`, so a type left over from a different size is rejected by name. An index would silently select whatever had moved into that slot.
 
 ### Naming
+
+Name the two quantities every design shares consistently: `num_runs` for the number of runs and `num_factors` for the number of experimental factors. That applies to function arguments, local variables and Shiny input ids alike, so `input$num_factors` feeds `factorial_create(num_factors = )`. Arguments of the underlying package keep that package's own spelling — `FrF2::FrF2(nruns = , nfactors = )` is called as FrF2 names it, not renamed at the boundary.
+
+Factor names come from two shared helpers in `R/design.R`. `default_factor_names(num_factors)` generates the defaults — single letters while they last, then `names0()`. `rename_factors(text, num_factors)` merges a user's comma-separated names over those defaults. The result feeds `{design}_create()`, which hands it to the package; it must **not** be applied to a finished design instead. FrF2 needs the names at construction for its alias legend to read `A=Temp` rather than `A=A`, and renaming afterwards would leave the notes describing factors by the wrong label.
+
+Each design also names the factor count its panel opens on — `FACTORIAL_DEFAULT_FACTORS`, `SPACEFILLING_OPT_DEFAULT_FACTORS` — because the dependent dropdowns are built from it and the two must not drift apart.
 
 ### The packages are the source of truth
 

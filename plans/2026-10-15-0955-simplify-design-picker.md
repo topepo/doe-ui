@@ -392,3 +392,48 @@ Multiple designs per family needed no change to the registry: `design_families()
 The type availability is worth knowing: all four types exist from 2 to 10 factors, and only `uniform` from 11 to 15. So a type genuinely does go stale when the factor count crosses ten, which the module handles by pausing rather than silently substituting, and which has a test.
 
 227 tests pass, no skips.
+
+## Follow-up: dropdowns arrived empty
+
+Four dependent dropdowns rendered with no options at all — the factorial's run count and blocks, and the optimized design's type and run count — and stayed empty until the factor count was nudged.
+
+The cause is that each was declared `choices = NULL` and filled by an `observeEvent()` on the factor count. That observer fires only when its input *changes*. The module UI is rebuilt by `output$options` every time a design is selected, and the rebuilt inputs re-send the same values, which Shiny's client-side dedup suppresses — so nothing changed, the observer never ran, and the selects stayed as rendered.
+
+They are now built with their choices already in place, from a named default factor count per design (`FACTORIAL_DEFAULT_FACTORS`, `SPACEFILLING_OPT_DEFAULT_FACTORS`) so the value and the dependent choices cannot drift apart. The observers stay, for when the user does change the factor count.
+
+A test now renders every registered design's UI and asserts no `<select>` comes back without options, which covers designs not yet written.
+
+### Two fixes to the sfd rescaling
+
+The `[0, 1]` standardization added to `spacefilling_opt_create()` had a stray `sprintf()` argument — the format string had lost its `%d` but kept `num_runs`, which R warns about. The note now reads `Precomputed by the sfd package, 20 levels rescaled to 0-1.`
+
+The rescaling itself divides by `num_runs` rather than each column's own maximum. Every column of a Latin hypercube is a permutation of 1 to n, so the two agree today — checked across three types and sizes — but the per-column form would silently put each factor on a different scale if that ever stopped holding. It is also base R now rather than `purrr::map_dfc()`, which is superseded and would have added an undeclared dependency: `spacefilling_opt_get_packages()` lists only `sfd`.
+
+236 tests pass, no skips.
+
+## Follow-up: tibbles
+
+`doe_design$table` is a tibble. `new_design()` coerces whatever a generator hands it, so no generator has to remember, and `as_tibble()` drops the row names that `rbind()` and friends leave behind.
+
+Two things that needed care:
+
+- **`as_tibble()` does not strip other attributes.** The guarantee that FrF2's `design.info`, `desnum` and `run.order` stay off the table still comes from rebuilding it column by column in `factorial_create()`, not from the coercion. The README says so, and the test that asserts those attributes are absent still passes.
+- **`cbind()` would have silently undone it.** `with_run_order()` used `cbind()`, which dispatches to the base method and returns a plain data frame. It now uses `tibble::add_column(.before = 1)`.
+
+`print.doe_design()` prints with `n = Inf` rather than the tibble default of ten rows: a design is meant to be read whole, and run counts are bounded by each design's own ceiling. Without it the snapshots would cover only the first ten runs of a sixteen-run design.
+
+Snapshots changed but no values did. The numeric content of the old and new snapshot files differs only by the `# A tibble: 16 x 6` header lines and by tibble not padding to a common decimal width — `0.333000` became `0.333` and `1230.00` became `1230`. The value assertions over the same data were untouched and still pass.
+
+Verified that the CSV download round-trips and reactable renders from a tibble.
+
+236 tests pass, no skips.
+
+## Follow-up: room to type factor names
+
+The `Factor names` box is a three-row `textAreaInput` instead of a one-line `textInput`, in all three designs. The input holds one name per factor and the factorial goes to 127 of them, so a single line was never going to be enough. `resize = "vertical"` so dragging it taller cannot break the panel width.
+
+The inputs carry no explicit width and already stretch to the card, so height was the dimension with anything to gain.
+
+`rename_factors()` now splits on newlines as well as commas. A text area invites one name per line, and without this the whole block would have arrived as a single factor name. Verified end to end: `"Temp\nPressure\nTime\nCatalyst"` reaches the table as four columns.
+
+242 tests pass, no skips.

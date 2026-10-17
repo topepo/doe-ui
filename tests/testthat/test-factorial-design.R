@@ -275,7 +275,7 @@ test_that("the design table carries no FrF2 attributes", {
   expect_null(attr(design$table, "design.info"))
   expect_null(attr(design$table, "desnum"))
   expect_null(attr(design$table, "run.order"))
-  expect_identical(class(design$table), "data.frame")
+  expect_s3_class(design$table, "tbl_df")
 })
 
 test_that("block counts follow FrF2's rules and report what is available", {

@@ -109,7 +109,7 @@ test_that("create returns a doe_design carrying a plain data frame", {
   design <- factorial_create(num_factors = 6, num_runs = 16)
   expect_s3_class(design, "doe_design")
   expect_named(design, c("table", "title", "notes"))
-  expect_identical(class(design$table), "data.frame")
+  expect_s3_class(design$table, "tbl_df")
   expect_type(design$title, "character")
   expect_length(design$title, 1)
   expect_type(design$notes, "character")

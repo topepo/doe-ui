@@ -12,9 +12,12 @@ ORDER_COLUMNS <- c("Standard order", "Run order")
 # all. Add it back if something actually needs to distinguish coded levels from
 # real quantities.
 new_design <- function(table, title, notes = character()) {
-  rownames(table) <- NULL
+  # Coerced here so no generator has to remember. as_tibble() also drops row
+  # names, which rbind() and friends otherwise leave behind. It does *not*
+  # strip other attributes, so a generator wrapping a package still has to
+  # hand over a clean table rather than the package's own object.
   structure(
-    list(table = table, title = title, notes = notes),
+    list(table = tibble::as_tibble(table), title = title, notes = notes),
     class = "doe_design"
   )
 }
@@ -24,7 +27,9 @@ print.doe_design <- function(x, ...) {
   for (note in x$notes) {
     cat("  ", note, "\n", sep = "")
   }
-  print(x$table)
+  # Every run, rather than the tibble default of ten: a design is meant to be
+  # read whole, and these are bounded by each design's own run ceiling.
+  print(x$table, n = Inf)
   invisible(x)
 }
 
@@ -131,7 +136,9 @@ default_factor_names <- function(num_factors) {
 # renaming afterwards would leave the notes describing factors by the wrong
 # label.
 rename_factors <- function(text, num_factors) {
-  given <- trimws(strsplit(text %||% "", ",", fixed = TRUE)[[1]])
+  # Split on newlines as well as commas: the input is a text area, so one
+  # name per line is a natural thing to type.
+  given <- trimws(strsplit(text %||% "", "[,\n]")[[1]])
   given <- given[nzchar(given)]
   names <- default_factor_names(num_factors)
   supplied <- seq_len(min(length(given), num_factors))
@@ -144,10 +151,13 @@ rename_factors <- function(text, num_factors) {
 # never the rows themselves, which is what keeps generator output snapshottable.
 with_run_order <- function(design, randomize) {
   num_runs <- nrow(design$table)
-  design$table <- cbind(
+  # add_column() rather than cbind(), which dispatches to the base method and
+  # would hand back a plain data frame.
+  design$table <- tibble::add_column(
+    design$table,
     `Standard order` = seq_len(num_runs),
     `Run order` = if (randomize) sample(num_runs) else seq_len(num_runs),
-    design$table
+    .before = 1
   )
   design
 }

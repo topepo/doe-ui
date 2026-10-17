@@ -99,3 +99,17 @@ test_that("stop_unless reports the message it was given", {
   expect_snapshot(error = TRUE, stop_unless(FALSE, "Choose between 2 and 8 factors."))
   expect_true(stop_unless(TRUE, "unused"))
 })
+
+test_that("factor names may be separated by newlines as well as commas", {
+  # The input is a text area, so one name per line is a natural thing to type.
+  expect_equal(
+    rename_factors("Temp\nPressure\nTime", 3),
+    c("Temp", "Pressure", "Time")
+  )
+  expect_equal(
+    rename_factors("Temp, Pressure\nTime", 3),
+    c("Temp", "Pressure", "Time")
+  )
+  # Blank lines are dropped, like empty comma fields.
+  expect_equal(rename_factors("Temp\n\nPressure", 3), c("Temp", "Pressure", "C"))
+})

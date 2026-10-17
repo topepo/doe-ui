@@ -24,15 +24,17 @@
       design
     Output
       2^3 full factorial – 3 factors, 8 runs
-         A  B  C
-      1 -1 -1 -1
-      2  1 -1 -1
-      3 -1  1 -1
-      4  1  1 -1
-      5 -1 -1  1
-      6  1 -1  1
-      7 -1  1  1
-      8  1  1  1
+      # A tibble: 8 x 3
+            A     B     C
+        <dbl> <dbl> <dbl>
+      1    -1    -1    -1
+      2     1    -1    -1
+      3    -1     1    -1
+      4     1     1    -1
+      5    -1    -1     1
+      6     1    -1     1
+      7    -1     1     1
+      8     1     1     1
 
 # a fractional factorial reports its resolution and generators
 
@@ -41,23 +43,25 @@
     Output
       2^(6-2) fractional factorial, resolution IV – 6 factors, 16 runs
         Two-factor interactions aliased: AB=CE=DF, AC=BE, AD=BF, AE=BC, AF=BD, CD=EF, CF=DE
-          A  B  C  D  E  F
-      1  -1 -1 -1 -1 -1 -1
-      2   1 -1 -1 -1  1  1
-      3  -1  1 -1 -1  1  1
-      4   1  1 -1 -1 -1 -1
-      5  -1 -1  1 -1  1 -1
-      6   1 -1  1 -1 -1  1
-      7  -1  1  1 -1 -1  1
-      8   1  1  1 -1  1 -1
-      9  -1 -1 -1  1 -1  1
-      10  1 -1 -1  1  1 -1
-      11 -1  1 -1  1  1 -1
-      12  1  1 -1  1 -1  1
-      13 -1 -1  1  1  1  1
-      14  1 -1  1  1 -1 -1
-      15 -1  1  1  1 -1 -1
-      16  1  1  1  1  1  1
+      # A tibble: 16 x 6
+             A     B     C     D     E     F
+         <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
+       1    -1    -1    -1    -1    -1    -1
+       2     1    -1    -1    -1     1     1
+       3    -1     1    -1    -1     1     1
+       4     1     1    -1    -1    -1    -1
+       5    -1    -1     1    -1     1    -1
+       6     1    -1     1    -1    -1     1
+       7    -1     1     1    -1    -1     1
+       8     1     1     1    -1     1    -1
+       9    -1    -1    -1     1    -1     1
+      10     1    -1    -1     1     1    -1
+      11    -1     1    -1     1     1    -1
+      12     1     1    -1     1    -1     1
+      13    -1    -1     1     1     1     1
+      14     1    -1     1     1    -1    -1
+      15    -1     1     1     1    -1    -1
+      16     1     1     1     1     1     1
 
 # an unknown type is rejected by name, not silently replaced
 

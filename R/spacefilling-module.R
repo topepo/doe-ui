@@ -6,24 +6,44 @@
 
 # ---- Optimized ---------------------------------------------------------------
 
-spacefilling_opt_ui <- function(id) {
+# The factor count the panel opens on. Named, because the dependent dropdowns
+# below are built from it and the two must not drift apart.
+SPACEFILLING_OPT_DEFAULT_FACTORS <- 6L
+
+spacefilling_opt_ui <- function(id,
+                                num_factors = SPACEFILLING_OPT_DEFAULT_FACTORS) {
   ns <- shiny::NS(id)
   limits <- spacefilling_opt_get_limits()$num_factors
+  # Populated here rather than left empty for the server to fill: the
+  # observers only fire when their input *changes*, and returning to this
+  # design rebuilds the UI with the same factor count, which Shiny's input
+  # dedup suppresses.
+  type_choices <- spacefilling_opt_get_types(num_factors)
+  num_runs_choices <- spacefilling_opt_get_num_runs_choices(
+    num_factors,
+    type_choices[[1]]
+  )
   shiny::tagList(
     shiny::numericInput(
       ns("num_factors"),
       "Number of factors",
-      value = 6,
+      value = num_factors,
       min = limits[1],
       max = limits[2]
     ),
-    # Both are filled in by the server. The types depend on the factor count,
-    # and the run counts depend on the type as well.
-    shiny::selectInput(ns("type"), "Design", choices = NULL),
-    shiny::selectInput(ns("num_runs"), "Number of runs", choices = NULL),
-    shiny::textInput(
+    shiny::selectInput(ns("type"), "Design", choices = type_choices),
+    shiny::selectInput(
+      ns("num_runs"),
+      "Number of runs",
+      choices = num_runs_choices
+    ),
+    # A text area rather than a single line: the list runs to one name per
+    # factor, and the comma-separated form gets long.
+    shiny::textAreaInput(
       ns("factor_names"),
       "Factor names",
+      rows = 3,
+      resize = "vertical",
       placeholder = "Temp, Pressure, Time — blank for A, B, C"
     )
   )
@@ -130,9 +150,13 @@ spacefilling_rand_ui <- function(id) {
       max = limits$num_runs[2]
     ),
     shiny::numericInput(ns("seed"), "Random seed", value = 1, min = 1),
-    shiny::textInput(
+    # A text area rather than a single line: the list runs to one name per
+    # factor, and the comma-separated form gets long.
+    shiny::textAreaInput(
       ns("factor_names"),
       "Factor names",
+      rows = 3,
+      resize = "vertical",
       placeholder = "Temp, Pressure, Time — blank for A, B, C"
     )
   )
