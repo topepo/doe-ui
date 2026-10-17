@@ -67,19 +67,25 @@ picker_ui <- function(
     bslib::accordion_panel(
       title = names(families)[i],
       value = names(families)[i],
-      shiny::radioButtons(
-        ns(paste0("family_", i)),
-        label = NULL,
-        choiceNames = unname(vapply(
-          ids,
-          function(x) registry[[x]]$label,
-          character(1)
-        )),
-        choiceValues = ids,
-        # character(0) leaves the group unchecked. NULL would silently select
-        # the first choice, which would mean several families claiming a
-        # selection at once.
-        selected = if (selected %in% ids) selected else character(0)
+      # The design-picker class is what the stylesheet in R/ui.R hangs the
+      # link styling on. The control stays a radio group; it just does not
+      # look like one.
+      shiny::tagAppendAttributes(
+        class = "design-picker",
+        shiny::radioButtons(
+          ns(paste0("family_", i)),
+            label = NULL,
+            choiceNames = unname(vapply(
+            ids,
+            function(x) registry[[x]]$label,
+            character(1)
+          )),
+          choiceValues = ids,
+          # character(0) leaves the group unchecked. NULL would silently
+          # select the first choice, which would mean several families
+          # claiming a selection at once.
+          selected = if (selected %in% ids) selected else character(0)
+        )
       )
     )
   })

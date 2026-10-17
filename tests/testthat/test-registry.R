@@ -1,14 +1,16 @@
-test_that("families appear in registry order, space-filling first", {
-  families <- design_families()
-  expect_equal(
-    names(families),
-    c("Space-Filling Designs", "Screening designs")
-  )
-  expect_equal(
-    families[["Space-Filling Designs"]],
-    c("lhs_optimized", "uniform", "lhs_random")
-  )
-  expect_equal(families[["Screening designs"]], "factorial")
+test_that("families and designs both appear in registry order", {
+  # Derived from the registry rather than hardcoded, so reordering entries is
+  # a one-place change and this still checks the grouping.
+  registry <- design_registry()
+  families <- vapply(registry, function(d) d$family, character(1))
+  grouped <- design_families()
+
+  expect_equal(names(grouped), unique(families))
+  for (family in names(grouped)) {
+    expect_equal(grouped[[family]], names(registry)[families == family])
+  }
+  # Space-filling designs still come before screening ones.
+  expect_equal(names(grouped)[1], "Space-Filling Designs")
 })
 
 test_that("every registry entry has the fields the app reads", {
@@ -213,4 +215,37 @@ test_that("the uniform module builds without a type", {
     expect_match(design$title, "^Uniform design")
     expect_equal(range(unlist(design$table)), c(0, 1))
   })
+})
+
+test_that("the picker is styled as a list, and only the picker", {
+  html <- as.character(picker_ui("picker"))
+  # One class per family radio group, which the stylesheet in R/ui.R targets.
+  expect_equal(length(gregexpr("design-picker", html)[[1]]), 2)
+  # The input is still a radio group underneath, which is what keeps one
+  # selection per family without an observer per design.
+  expect_match(html, 'role="radiogroup"')
+
+  # Designs' own radio inputs must not pick up the link styling. The
+  # factorial's type selector is a radioButtons too, and should look like one.
+  types <- shiny::radioButtons("type", "Choose a design", choices = c(a = "a"))
+  expect_false(grepl("design-picker", as.character(types)))
+})
+
+test_that("the picker stylesheet compiles and resolves theme colours", {
+  deps <- bslib::bs_theme_dependencies(app_theme())
+  styled <- Filter(function(d) !is.null(d$stylesheet), deps)
+  dep <- styled[[length(styled)]]
+  css <- paste(
+    readLines(file.path(dep$src$file, dep$stylesheet), warn = FALSE),
+    collapse = "\n"
+  )
+  rules <- regmatches(css, gregexpr("[.]design-picker[^{]*[{][^}]*[}]", css))[[1]]
+  expect_length(rules, 7)
+  # $primary and color-contrast() resolved rather than emitted literally.
+  expect_false(any(grepl("$primary", rules, fixed = TRUE)))
+  expect_false(any(grepl("color-contrast", rules, fixed = TRUE)))
+  # The radio itself is moved out of sight, not removed: display:none would
+  # take it out of the tab order.
+  expect_false(any(grepl("display:none", rules, fixed = TRUE)))
+  expect_true(any(grepl("focus-visible", rules, fixed = TRUE)))
 })

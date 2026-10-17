@@ -456,3 +456,22 @@ Having a single criterion, the uniform design returns no types at all and `space
 The shared work moved into `sfd_create()` and `sfd_table()`: the two sfd designs differ in which types they offer, not in how a design is built. `SFD_SUPPORT` now summarises all fourteen library tables once when the file is sourced, about a tenth of a second, rather than rescanning on every keystroke.
 
 262 tests pass, no skips.
+
+## Follow-up: the picker reads as a list again, not radio buttons
+
+The original app picked a design by clicking its name; the rewrite replaced that with visible radio buttons. That was my decision, carried inside the "Accordion family list" option chosen during planning — the question being answered there was accordion versus dropdown, and the control type rode along in the option's description rather than being asked about.
+
+The radio group is worth keeping underneath. It gives one selection per family for free, where the original needed a `reactiveVal`, an `observeEvent` per design, `design_link_id()` to mangle names into input ids, and a `renderUI` that redrew the whole accordion on every click purely to move an `.active` class. It also lets the accordion sit as an immediate child of `sidebar()`, which is what makes it render flush — the original's `uiOutput()` wrapper broke that.
+
+So the control stays and only the appearance changes. `PICKER_RULES` in `R/ui.R` styles the labels as the old links and moves the radio itself out of sight. Seven rules, scoped to a `design-picker` class that `picker_ui()` puts on each family's radio group, so a design's own radio inputs — the factorial's type selector — still look like radio buttons.
+
+Two details worth keeping:
+
+- The input is positioned out of view at 1px rather than hidden with `display: none`, which would take it out of the tab order and out of the accessibility tree. `:focus-visible` puts the focus ring back on the label.
+- The rules are Sass, not plain CSS, so `$primary` and `color-contrast($primary)` follow the theme. Compiled against the yeti preset they resolve to `#008cba` on `#fff`; changing the preset moves the highlight with it. There is a test that reads the compiled stylesheet and asserts neither token is emitted literally.
+
+Also made the family-order test derive its expectation from the registry rather than hardcoding ids, since the registry order is yours to change and the test should check the grouping, not the choice.
+
+271 tests pass, no skips.
+
+One practical note, which cost a round-trip to diagnose: bslib serves the compiled theme at `bootstrap-<version>/bootstrap.min.css`, named for the Bootstrap version rather than content-hashed. The URL therefore does not change when the Sass does, and a browser that cached the file keeps serving the old copy — editing `PICKER_RULES` looks like it has done nothing until a hard reload. There is a comment to that effect above the rules.
