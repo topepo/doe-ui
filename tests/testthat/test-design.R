@@ -96,7 +96,10 @@ test_that("a design prints its title, notes, and table", {
 })
 
 test_that("stop_unless reports the message it was given", {
-  expect_snapshot(error = TRUE, stop_unless(FALSE, "Choose between 2 and 8 factors."))
+  expect_snapshot(
+    error = TRUE,
+    stop_unless(FALSE, "Choose between 2 and 8 factors.")
+  )
   expect_true(stop_unless(TRUE, "unused"))
 })
 
@@ -111,5 +114,8 @@ test_that("factor names may be separated by newlines as well as commas", {
     c("Temp", "Pressure", "Time")
   )
   # Blank lines are dropped, like empty comma fields.
-  expect_equal(rename_factors("Temp\n\nPressure", 3), c("Temp", "Pressure", "C"))
+  expect_equal(
+    rename_factors("Temp\n\nPressure", 3),
+    c("Temp", "Pressure", "C")
+  )
 })

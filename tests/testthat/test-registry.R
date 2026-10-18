@@ -55,31 +55,48 @@ test_that("selecting in either family drives the selection", {
 })
 
 test_that("the optimized module builds from sfd once its inputs are set", {
-  shiny::testServer(spacefilling_opt_server, args = list(id = "lhs_optimized"), {
-    session$setInputs(num_factors = 6, type = "max_min_l2", factor_names = "")
-    # The run choices depend on the type, so they are not known until it is set.
-    session$setInputs(num_runs = "20")
-    design <- session$getReturned()()
-    expect_s3_class(design, "doe_design")
-    expect_equal(nrow(design$table), 20)
-    expect_equal(names(design$table), LETTERS[1:6])
-  })
+  shiny::testServer(
+    spacefilling_opt_server,
+    args = list(id = "lhs_optimized"),
+    {
+      session$setInputs(num_factors = 6, type = "max_min_l2", factor_names = "")
+      # The run choices depend on the type, so they are not known until it is set.
+      session$setInputs(num_runs = "20")
+      design <- session$getReturned()()
+      expect_s3_class(design, "doe_design")
+      expect_equal(nrow(design$table), 20)
+      expect_equal(names(design$table), LETTERS[1:6])
+    }
+  )
 })
 
 test_that("a type that this factor count does not offer is dropped", {
-  shiny::testServer(spacefilling_opt_server, args = list(id = "lhs_optimized"), {
-    session$setInputs(num_factors = 6, type = "max_min_l1", num_runs = "4",
-                      factor_names = "")
-    expect_s3_class(session$getReturned()(), "doe_design")
-    # Past ten factors only uniform survives, so the held type goes stale.
-    session$setInputs(num_factors = 12)
-    expect_error(session$getReturned()(), class = "shiny.silent.error")
-  })
+  shiny::testServer(
+    spacefilling_opt_server,
+    args = list(id = "lhs_optimized"),
+    {
+      session$setInputs(
+        num_factors = 6,
+        type = "max_min_l1",
+        num_runs = "4",
+        factor_names = ""
+      )
+      expect_s3_class(session$getReturned()(), "doe_design")
+      # Past ten factors only uniform survives, so the held type goes stale.
+      session$setInputs(num_factors = 12)
+      expect_error(session$getReturned()(), class = "shiny.silent.error")
+    }
+  )
 })
 
 test_that("the random module builds from DiceDesign", {
   shiny::testServer(spacefilling_rand_server, args = list(id = "lhs_random"), {
-    session$setInputs(num_factors = 4, num_runs = 12, seed = 3, factor_names = "")
+    session$setInputs(
+      num_factors = 4,
+      num_runs = 12,
+      seed = 3,
+      factor_names = ""
+    )
     design <- session$getReturned()()
     expect_s3_class(design, "doe_design")
     expect_equal(dim(design$table), c(12L, 4L))
@@ -239,7 +256,9 @@ test_that("the picker stylesheet compiles and resolves theme colours", {
     readLines(file.path(dep$src$file, dep$stylesheet), warn = FALSE),
     collapse = "\n"
   )
-  rules <- regmatches(css, gregexpr("[.]design-picker[^{]*[{][^}]*[}]", css))[[1]]
+  rules <- regmatches(css, gregexpr("[.]design-picker[^{]*[{][^}]*[}]", css))[[
+    1
+  ]]
   expect_length(rules, 7)
   # $primary and color-contrast() resolved rather than emitted literally.
   expect_false(any(grepl("$primary", rules, fixed = TRUE)))

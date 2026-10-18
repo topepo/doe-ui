@@ -252,13 +252,15 @@ factorial_get_blocks_choices <- function(num_runs) {
 #   factor_names column names, one per factor
 #
 # center, blocks and replications default to FrF2's own defaults.
-factorial_create <- function(num_factors,
-                             num_runs,
-                             type = NULL,
-                             center = 0,
-                             blocks = 1,
-                             replications = 1,
-                             factor_names = default_factor_names(num_factors)) {
+factorial_create <- function(
+  num_factors,
+  num_runs,
+  type = NULL,
+  center = 0,
+  blocks = 1,
+  replications = 1,
+  factor_names = default_factor_names(num_factors)
+) {
   # Checked before the range comparison below, which would otherwise be NA and
   # fail with "missing value where TRUE/FALSE needed" rather than a message.
   stop_unless(

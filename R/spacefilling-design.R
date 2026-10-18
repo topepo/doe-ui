@@ -107,7 +107,10 @@ sfd_create <- function(num_factors, num_runs, type, factor_names, types) {
   if (!type %in% names(available_types)) {
     stop_unavailable(
       type,
-      stats::setNames(names(available_types), sfd_labels(names(available_types))),
+      stats::setNames(
+        names(available_types),
+        sfd_labels(names(available_types))
+      ),
       "design",
       sprintf("%d factors", num_factors)
     )
@@ -167,12 +170,14 @@ spacefilling_opt_get_num_runs_choices <- function(num_factors, type) {
 }
 
 # Returns: a doe_design.
-spacefilling_opt_create <- function(num_factors,
-                                    num_runs,
-                                    type,
-                                    factor_names = default_factor_names(
-                                      num_factors
-                                    )) {
+spacefilling_opt_create <- function(
+  num_factors,
+  num_runs,
+  type,
+  factor_names = default_factor_names(
+    num_factors
+  )
+) {
   types <- spacefilling_opt_get_types(num_factors)
   if (is.null(type)) {
     type <- unname(types[1])
@@ -240,11 +245,13 @@ spacefilling_unif_get_num_runs_choices <- function(num_factors) {
 }
 
 # Returns: a doe_design. No type argument: there is only one.
-spacefilling_unif_create <- function(num_factors,
-                                     num_runs,
-                                     factor_names = default_factor_names(
-                                       num_factors
-                                     )) {
+spacefilling_unif_create <- function(
+  num_factors,
+  num_runs,
+  factor_names = default_factor_names(
+    num_factors
+  )
+) {
   table <- sfd_create(
     num_factors,
     num_runs,

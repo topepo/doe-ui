@@ -27,7 +27,12 @@ factorial_ui <- function(id, num_factors = FACTORIAL_DEFAULT_FACTORS) {
       "Number of runs",
       choices = num_runs_choices
     ),
-    shiny::selectInput(ns("center"), "Center points per block", choices = 0:5, selected = 0),
+    shiny::selectInput(
+      ns("center"),
+      "Center points per block",
+      choices = 0:5,
+      selected = 0
+    ),
     shiny::selectInput(ns("blocks"), "Blocks", choices = blocks_choices),
     shiny::numericInput(ns("replications"), "Replications", value = 1, min = 1),
     # A text area rather than a single line: the list runs to one name per

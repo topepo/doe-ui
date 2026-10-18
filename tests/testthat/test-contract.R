@@ -93,9 +93,12 @@ test_that("get_notes reads the package's object, not a doe_design", {
   # notes quietly vanish if this is ever called at the wrong point in
   # construction, rather than failing loudly.
   expect_length(factorial_get_notes(factorial_create(6, 16)), 0)
-  expect_gt(length(factorial_get_notes(suppressMessages(
-    FrF2::FrF2(design = "6-2.1", randomize = FALSE)
-  ))), 0)
+  expect_gt(
+    length(factorial_get_notes(suppressMessages(
+      FrF2::FrF2(design = "6-2.1", randomize = FALSE)
+    ))),
+    0
+  )
 })
 
 test_that("get_notes may be empty", {

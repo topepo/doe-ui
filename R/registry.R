@@ -74,8 +74,8 @@ picker_ui <- function(
         class = "design-picker",
         shiny::radioButtons(
           ns(paste0("family_", i)),
-            label = NULL,
-            choiceNames = unname(vapply(
+          label = NULL,
+          choiceNames = unname(vapply(
             ids,
             function(x) registry[[x]]$label,
             character(1)

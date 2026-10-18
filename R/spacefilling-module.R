@@ -10,8 +10,12 @@
 # below are built from it and the two must not drift apart.
 SPACEFILLING_OPT_DEFAULT_FACTORS <- 6L
 
-spacefilling_opt_ui <- function(id,
-                                num_factors = SPACEFILLING_OPT_DEFAULT_FACTORS) {
+spacefilling_opt_ui <- function(
+  id,
+  num_factors = SPACEFILLING_OPT_DEFAULT_FACTORS
+) {
+  require(sfd)
+  require(DiceDesign)
   ns <- shiny::NS(id)
   limits <- spacefilling_opt_get_limits()$num_factors
   # Populated here rather than left empty for the server to fill: the
@@ -132,8 +136,10 @@ spacefilling_opt_server <- function(id) {
 # The factor count the panel opens on.
 SPACEFILLING_UNIF_DEFAULT_FACTORS <- 6L
 
-spacefilling_unif_ui <- function(id,
-                                 num_factors = SPACEFILLING_UNIF_DEFAULT_FACTORS) {
+spacefilling_unif_ui <- function(
+  id,
+  num_factors = SPACEFILLING_UNIF_DEFAULT_FACTORS
+) {
   ns <- shiny::NS(id)
   limits <- spacefilling_unif_get_limits()$num_factors
   shiny::tagList(

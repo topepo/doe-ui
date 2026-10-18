@@ -23,16 +23,21 @@ test_that("run_choices never offers a run count FrF2 lacks", {
   # missing size out of the dropdown.
   expect_false(1024 %in% factorial_get_num_runs_choices(34))
   expect_false(1024 %in% factorial_support[["34"]])
-  expect_true(2048 %in% vapply(
-    Filter(function(e) e$nfac == 34, FrF2::catlg),
-    function(e) e$nruns,
-    numeric(1)
-  ))
+  expect_true(
+    2048 %in%
+      vapply(
+        Filter(function(e) e$nfac == 34, FrF2::catlg),
+        function(e) e$nruns,
+        numeric(1)
+      )
+  )
 })
 
 test_that("nothing beyond the run ceiling is offered", {
   for (k in c(2, 8, 20, 60, factorial_factor_range[2])) {
-    expect_true(all(unname(factorial_get_num_runs_choices(k)) <= FACTORIAL_MAX_RUNS))
+    expect_true(all(
+      unname(factorial_get_num_runs_choices(k)) <= FACTORIAL_MAX_RUNS
+    ))
   }
 })
 
@@ -42,7 +47,11 @@ test_that("catalog_entries finds fractions and skips full factorials", {
   # Several equivalent fractions exist at this size; the app offers a choice.
   expect_gt(length(factorial_catalog_entries(6, 16)), 1)
   # Best first: resolution never increases down the list.
-  resolutions <- vapply(factorial_catalog_entries(6, 16), function(e) e$res, numeric(1))
+  resolutions <- vapply(
+    factorial_catalog_entries(6, 16),
+    function(e) e$res,
+    numeric(1)
+  )
   expect_false(is.unsorted(rev(resolutions)))
 })
 
@@ -95,7 +104,10 @@ test_that("an unknown type is rejected by name, not silently replaced", {
 })
 
 test_that("default names cross from letters to names0 past the alphabet", {
-  expect_equal(names(factorial_create(num_factors = 20, num_runs = 256)$table)[c(1, 20)], c("A", "T"))
+  expect_equal(
+    names(factorial_create(num_factors = 20, num_runs = 256)$table)[c(1, 20)],
+    c("A", "T")
+  )
   big <- names(factorial_create(num_factors = 30, num_runs = 64)$table)
   expect_equal(big[c(1, 30)], c("x01", "x30"))
   expect_false(any(big %in% LETTERS))
@@ -122,7 +134,9 @@ test_that("a large design reports aliasing without enumerating words", {
   # This design has 53 generators. Deriving its defining relation here would
   # mean 2^53 words and would hang; FrF2's alias classes are bounded by the
   # run count instead, so the note is both cheap and complete.
-  elapsed <- system.time(design <- factorial_create(num_factors = 60, num_runs = 128))[["elapsed"]]
+  elapsed <- system.time(
+    design <- factorial_create(num_factors = 60, num_runs = 128)
+  )[["elapsed"]]
   expect_lt(elapsed, 10)
   expect_length(grep("^Two-factor interactions aliased:", design$notes), 1)
 })
@@ -148,9 +162,15 @@ test_that("a renamed factor appears in the alias legend", {
 
 test_that("describe_entry shortens a long generator list", {
   large <- factorial_catalog_entries(30, 64)
-  expect_match(factorial_type_label(names(large)[1], large[[1]]), "\\(24 generators\\)")
+  expect_match(
+    factorial_type_label(names(large)[1], large[[1]]),
+    "\\(24 generators\\)"
+  )
   small <- factorial_catalog_entries(6, 16)
-  expect_no_match(factorial_type_label(names(small)[1], small[[1]]), "generators\\)")
+  expect_no_match(
+    factorial_type_label(names(small)[1], small[[1]]),
+    "generators\\)"
+  )
   expect_snapshot(factorial_type_label(names(small)[1], small[[1]]))
 })
 
@@ -179,7 +199,11 @@ test_that("invalid options fail with a message written for the user", {
     factorial_create(num_factors = 3, num_runs = 6)
     factorial_create(num_factors = 34, num_runs = 1024)
     factorial_create(num_factors = 3, num_runs = 8, center = -1)
-    factorial_create(num_factors = 3, num_runs = 8, factor_names = c("Temp", "Pressure"))
+    factorial_create(
+      num_factors = 3,
+      num_runs = 8,
+      factor_names = c("Temp", "Pressure")
+    )
   })
 })
 
@@ -243,7 +267,12 @@ test_that("blocks add a labelled block column", {
 test_that("block labels stay labels and are never coerced to numbers", {
   # With replications FrF2 labels blocks "1.1", "2.1" -- block and replicate,
   # not a decimal. Coercing would turn "1.1" into 1.1 and invent a number.
-  design <- factorial_create(num_factors = 3, num_runs = 8, blocks = 2, replications = 2)
+  design <- factorial_create(
+    num_factors = 3,
+    num_runs = 8,
+    blocks = 2,
+    replications = 2
+  )
   expect_type(design$table$Blocks, "character")
   expect_setequal(design$table$Blocks, c("1.1", "1.2", "2.1", "2.2"))
 })
@@ -251,10 +280,14 @@ test_that("block labels stay labels and are never coerced to numbers", {
 test_that("blocks = 1 means unblocked, including as an integer", {
   # FrF2's `blocks` also takes Yates column numbers, and an integer 1L lands in
   # that branch and errors rather than meaning "one block".
-  expect_equal(factorial_create(num_factors = 3, num_runs = 8, blocks = 1L)$table,
-               factorial_create(num_factors = 3, num_runs = 8)$table)
-  expect_equal(factorial_create(num_factors = 3, num_runs = 8, blocks = 1)$table,
-               factorial_create(num_factors = 3, num_runs = 8)$table)
+  expect_equal(
+    factorial_create(num_factors = 3, num_runs = 8, blocks = 1L)$table,
+    factorial_create(num_factors = 3, num_runs = 8)$table
+  )
+  expect_equal(
+    factorial_create(num_factors = 3, num_runs = 8, blocks = 1)$table,
+    factorial_create(num_factors = 3, num_runs = 8)$table
+  )
 })
 
 test_that("replications repeat every run", {
@@ -264,7 +297,12 @@ test_that("replications repeat every run", {
 })
 
 test_that("center points are per block, as FrF2 counts them", {
-  design <- factorial_create(num_factors = 3, num_runs = 8, blocks = 2, center = 2)
+  design <- factorial_create(
+    num_factors = 3,
+    num_runs = 8,
+    blocks = 2,
+    center = 2
+  )
   # Two per block, two blocks, on top of the eight design runs.
   expect_equal(nrow(design$table), 12)
   expect_match(design$title, "4 center points")
@@ -285,12 +323,20 @@ test_that("block counts follow FrF2's rules and report what is available", {
     factorial_create(num_factors = 3, num_runs = 8, blocks = 3)
     factorial_create(num_factors = 3, num_runs = 8, blocks = 16)
     factorial_create(num_factors = 3, num_runs = 8, replications = 0)
-    factorial_create(num_factors = 3, num_runs = 8, blocks = 2, factor_names = c("Blocks", "B", "C"))
+    factorial_create(
+      num_factors = 3,
+      num_runs = 8,
+      blocks = 2,
+      factor_names = c("Blocks", "B", "C")
+    )
   })
 })
 
 test_that("a blocking FrF2 will not build reports its own reason", {
   # Validity is design-specific: 4 blocks is structurally allowed at 16 runs
   # but confounds a two-factor interaction in this design. FrF2 says so.
-  expect_snapshot(error = TRUE, factorial_create(num_factors = 6, num_runs = 16, blocks = 4))
+  expect_snapshot(
+    error = TRUE,
+    factorial_create(num_factors = 6, num_runs = 16, blocks = 4)
+  )
 })
