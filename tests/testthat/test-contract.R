@@ -120,3 +120,44 @@ test_that("create returns a doe_design carrying a plain data frame", {
   expect_equal(nrow(design$table), 16)
   expect_false(any(ORDER_COLUMNS %in% names(design$table)))
 })
+
+test_that("the Taguchi design returns the documented shapes", {
+  packages <- taguchi_get_packages()
+  expect_type(packages, "character")
+  expect_null(names(packages))
+
+  limits <- taguchi_get_limits()
+  expect_named(limits, "num_factors")
+  expect_true(is.integer(limits$num_factors))
+  expect_length(limits$num_factors, 2)
+  expect_lt(limits$num_factors[1], limits$num_factors[2])
+
+  # Values are the data, names are the labels, and every value builds.
+  choices <- taguchi_get_num_runs_choices(5)
+  expect_type(choices, "double")
+  expect_false(is.unsorted(unname(choices)))
+  expect_true(all(nzchar(names(choices))))
+  expect_match(names(choices)[1], "runs")
+  for (value in unname(choices)) {
+    expect_s3_class(
+      taguchi_create(num_factors = 5, num_runs = value),
+      "doe_design"
+    )
+  }
+  # Empty past the widest array, as an empty double rather than NULL.
+  expect_length(taguchi_get_num_runs_choices(limits$num_factors[2] + 1), 0)
+  expect_type(taguchi_get_num_runs_choices(limits$num_factors[2] + 1), "double")
+
+  design <- taguchi_create(num_factors = 5, num_runs = 8)
+  expect_named(design, c("table", "title", "notes"))
+  expect_s3_class(design$table, "tbl_df")
+  expect_length(design$title, 1)
+  expect_type(design$notes, "character")
+  expect_false(any(ORDER_COLUMNS %in% names(design$table)))
+})
+
+test_that("the Taguchi design has no types, so it defines no get_types", {
+  # One array exists per run count, so there is nothing to choose between. The
+  # contract allows a design to omit a helper whose options it does not have.
+  expect_false(exists("taguchi_get_types"))
+})

@@ -41,6 +41,13 @@ design_registry <- function() {
       ui = factorial_ui,
       server = factorial_server,
       packages = factorial_get_packages
+    ),
+    taguchi = list(
+      label = "Two-level Taguchi",
+      family = "Screening designs",
+      ui = taguchi_ui,
+      server = taguchi_server,
+      packages = taguchi_get_packages
     )
   )
 }

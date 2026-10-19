@@ -106,3 +106,104 @@ test_that("the picker starts on the default and follows a selection", {
     expect_equal(session$getReturned()(), "factorial")
   })
 })
+
+test_that("the Taguchi module returns a design once its inputs are set", {
+  shiny::testServer(taguchi_server, args = list(id = "taguchi"), {
+    session$setInputs(
+      num_factors = 5,
+      num_runs = "8",
+      replications = 1,
+      factor_names = ""
+    )
+    design <- session$getReturned()()
+    expect_s3_class(design, "doe_design")
+    expect_equal(names(design$table), LETTERS[1:5])
+    expect_equal(nrow(design$table), 8)
+  })
+})
+
+test_that("the Taguchi module passes factor names through", {
+  shiny::testServer(taguchi_server, args = list(id = "taguchi"), {
+    session$setInputs(
+      num_factors = 3,
+      num_runs = "12",
+      replications = 1,
+      factor_names = "Temp (C), Pressure"
+    )
+    expect_equal(
+      names(session$getReturned()()$table),
+      c("Temp (C)", "Pressure", "C")
+    )
+  })
+})
+
+test_that("a stale Taguchi run count does not produce a design", {
+  shiny::testServer(taguchi_server, args = list(id = "taguchi"), {
+    session$setInputs(
+      num_factors = 7,
+      num_runs = "8",
+      replications = 1,
+      factor_names = ""
+    )
+    expect_s3_class(session$getReturned()(), "doe_design")
+    # 8 runs cannot hold 8 factors, which is the state that exists for one
+    # flush after the count changes. The reactive must pause, not error.
+    session$setInputs(num_factors = 8)
+    expect_error(session$getReturned()(), class = "shiny.silent.error")
+  })
+})
+
+test_that("an unusable Taguchi factor count pauses rather than failing", {
+  shiny::testServer(taguchi_server, args = list(id = "taguchi"), {
+    session$setInputs(
+      num_factors = NA,
+      num_runs = "8",
+      replications = 1,
+      factor_names = ""
+    )
+    expect_error(session$getReturned()(), class = "shiny.silent.error")
+  })
+})
+
+test_that("the Taguchi module passes replications through", {
+  shiny::testServer(taguchi_server, args = list(id = "taguchi"), {
+    session$setInputs(
+      num_factors = 5,
+      num_runs = "8",
+      replications = 3,
+      factor_names = ""
+    )
+    expect_equal(nrow(session$getReturned()()$table), 24)
+  })
+})
+
+test_that("the Taguchi panel opens with its run choices in place", {
+  html <- as.character(taguchi_ui("taguchi"))
+  expect_match(html, sprintf('value="%d"', TAGUCHI_DEFAULT_FACTORS))
+  expect_match(html, "8 runs \\(L8\\)")
+})
+
+test_that("the app dispatches to the Taguchi design", {
+  shiny::testServer(app_server, {
+    session$setInputs(`picker-family_2` = "taguchi", randomize = FALSE)
+    session$setInputs(
+      `taguchi-num_factors` = 5,
+      `taguchi-num_runs` = "8",
+      `taguchi-replications` = 1,
+      `taguchi-factor_names` = ""
+    )
+    expect_equal(selected(), "taguchi")
+    expect_equal(
+      names(current()$table),
+      c("Standard order", "Run order", LETTERS[1:5])
+    )
+    expect_equal(current()$table[["Run order"]], 1:8)
+    # The panel renders lazily, so a broken module UI only shows up here.
+    expect_false(is.null(output$options))
+  })
+})
+
+test_that("Taguchi sits in the screening family beside the factorial", {
+  families <- design_families()
+  expect_equal(families[["Screening designs"]], c("factorial", "taguchi"))
+})
