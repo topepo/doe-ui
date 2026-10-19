@@ -331,5 +331,74 @@ test_that("the app dispatches to the simplex-lattice design", {
 test_that("Mixture Designs is its own family, after the screening designs", {
   families <- design_families()
   expect_equal(names(families)[3], "Mixture Designs")
-  expect_equal(families[["Mixture Designs"]], "simplex_lattice")
+  expect_equal(
+    families[["Mixture Designs"]],
+    c("simplex_lattice", "simplex_centroid")
+  )
+})
+
+test_that("the simplex-centroid module returns a design once its inputs are set", {
+  shiny::testServer(mixture_scd_server, args = list(id = "simplex_centroid"), {
+    session$setInputs(num_factors = 3, replications = 1, factor_names = "")
+    design <- session$getReturned()()
+    expect_s3_class(design, "doe_design")
+    expect_equal(names(design$table), LETTERS[1:3])
+    expect_equal(nrow(design$table), 7)
+  })
+})
+
+test_that("the simplex-centroid module passes names and replications through", {
+  shiny::testServer(mixture_scd_server, args = list(id = "simplex_centroid"), {
+    session$setInputs(
+      num_factors = 3,
+      replications = 2,
+      factor_names = "Oil, Water"
+    )
+    design <- session$getReturned()()
+    expect_equal(names(design$table), c("Oil", "Water", "C"))
+    expect_equal(nrow(design$table), 14)
+  })
+})
+
+test_that("the simplex-centroid module builds at the top of the range", {
+  shiny::testServer(mixture_scd_server, args = list(id = "simplex_centroid"), {
+    session$setInputs(num_factors = 10, replications = 1, factor_names = "")
+    expect_equal(nrow(session$getReturned()()$table), 1023)
+  })
+})
+
+test_that("an unusable simplex-centroid factor count pauses with a message", {
+  shiny::testServer(mixture_scd_server, args = list(id = "simplex_centroid"), {
+    for (bad in list(NA, 1, 11, 2.5)) {
+      session$setInputs(num_factors = bad, replications = 1, factor_names = "")
+      expect_error(session$getReturned()(), class = "shiny.silent.error")
+    }
+  })
+})
+
+test_that("the simplex-centroid panel opens on its defaults", {
+  html <- as.character(mixture_scd_ui("simplex_centroid"))
+  expect_match(html, sprintf('value="%d"', MIXTURE_SCD_DEFAULT_FACTORS))
+  expect_match(html, 'max="10"')
+  # No levels: a centroid design has none to choose.
+  expect_false(grepl("num_levels", html))
+})
+
+test_that("the app dispatches to the simplex-centroid design", {
+  shiny::testServer(app_server, {
+    session$setInputs(`picker-family_3` = "simplex_centroid", randomize = FALSE)
+    session$setInputs(
+      `simplex_centroid-num_factors` = 3,
+      `simplex_centroid-replications` = 1,
+      `simplex_centroid-factor_names` = ""
+    )
+    expect_equal(selected(), "simplex_centroid")
+    expect_equal(
+      names(current()$table),
+      c("Standard order", "Run order", LETTERS[1:3])
+    )
+    expect_equal(nrow(current()$table), 7)
+    # The panel renders lazily, so a broken module UI only shows up here.
+    expect_false(is.null(output$options))
+  })
 })

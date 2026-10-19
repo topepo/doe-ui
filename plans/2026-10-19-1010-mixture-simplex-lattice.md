@@ -1,8 +1,8 @@
-# Mixture designs: simplex-lattice
+# Mixture designs: simplex-lattice and simplex-centroid
 
 ## Overview
 
-Add a "Mixture Designs" family after the screening designs, holding one design for now: "Simplex-Lattice Designs", built with `mixexp::SLD()`. Follows `inst/adding-designs.md`: a pure generator in `R/mixture-design.R`, a module in `R/mixture-module.R`, and one registry entry. The generator file is named for the family, as `spacefilling-design.R` is, so later mixture designs have a home.
+Add a "Mixture Designs" family after the screening designs, holding "Simplex-Lattice Designs", built with `mixexp::SLD()`, and "Simplex-Centroid Designs", built with `mixexp::SCD()`. Follows `inst/adding-designs.md`: a pure generator in `R/mixture-design.R`, a module in `R/mixture-module.R`, and one registry entry. The generator file is named for the family, as `spacefilling-design.R` is, so later mixture designs have a home.
 
 ## Checklist
 
@@ -19,6 +19,8 @@ Add a "Mixture Designs" family after the screening designs, holding one design f
 - [x] Boot the app, select the design, switch away and back
 - [x] Cap the factor count at 10, which removes the dependent levels dropdown
 - [x] Add a replications option
+- [x] Add the simplex-centroid design: generator, module, registry entry, tests, browser check
+- [x] Share the validation and table-building between the two generators
 
 ## Details
 
@@ -48,6 +50,14 @@ An earlier version kept 12 factors and made the levels dropdown depend on the fa
 
 `SLD()` has no replication argument, so the replicates are made outside it. The lattice is stacked as complete copies in standard order, with nothing added to mark the copy, matching the factorial and Taguchi designs. The title reports the lattice's own run count and then ", n replications".
 
+### Simplex-centroid
+
+`SCD(fac)` has one blend for every non-empty subset of the factors, in equal parts: the pure components, the equal splits of each pair, each triple, up to the overall centroid. That is 2^q - 1 blends, with no levels to choose, so the panel is just the factor count, replications and names.
+
+The range is 2 to 10 factors. The bottom is the package's, since `SCD(1)` fails inside it with an unhelpful message, and one component is not a mixture. The top is ours and matches the lattice: `SCD()` has no ceiling of its own and builds 13 factors (8191 blends) in 0.4 s, so unlike the lattice nothing forces it. Ten factors is 1023 blends. Every size from 2 to 13 was built and checked: 2^q - 1 rows, each summing to one, none repeated. Replications work as for the lattice, by stacking outside the package.
+
+The two generators share `mixture_check_num_factors()`, `mixture_check_replications()`, `mixture_table()` and `mixture_replication_text()`, so validation and the stacked table are written once. `mixture_usable_count()` in the module file is shared the same way.
+
 ### Not a flat-factor design
 
 The factors are components of a blend, constrained to sum to one. The table is in proportions, not coded -1/+1, so the design declares no coded scale. When `new_design()` gains its `coded` argument (see `2026-10-17-1425-factor-ranges-and-units.md`) this design passes `NULL`, which opts it out of the factor-range panel as that plan intends.
@@ -60,5 +70,5 @@ The factors are components of a blend, constrained to sum to one. The table is i
 
 ### Not done
 
-- Other mixture designs, such as simplex-centroid and extreme-vertices, which would join this family.
+- Other mixture designs, such as extreme-vertices, which would join this family.
 - Component bounds (lower and upper limits on each proportion), which `mixexp` handles in other functions.

@@ -264,3 +264,28 @@ test_that("the simplex-lattice design returns the documented shapes", {
   expect_type(design$notes, "character")
   expect_false(any(ORDER_COLUMNS %in% names(design$table)))
 })
+
+test_that("the simplex-centroid design returns the documented shapes", {
+  packages <- mixture_scd_get_packages()
+  expect_type(packages, "character")
+  expect_null(names(packages))
+
+  limits <- mixture_scd_get_limits()
+  expect_named(limits, "num_factors")
+  expect_true(is.integer(limits$num_factors))
+  expect_length(limits$num_factors, 2)
+  expect_lt(limits$num_factors[1], limits$num_factors[2])
+
+  # Every factor count in range builds, so there is no choices helper.
+  for (num_factors in seq(limits$num_factors[1], limits$num_factors[2])) {
+    expect_s3_class(mixture_scd_create(num_factors), "doe_design")
+  }
+  expect_false(exists("mixture_scd_get_num_factors_choices"))
+
+  design <- mixture_scd_create(num_factors = 4)
+  expect_named(design, c("table", "title", "notes"))
+  expect_s3_class(design$table, "tbl_df")
+  expect_length(design$title, 1)
+  expect_type(design$notes, "character")
+  expect_false(any(ORDER_COLUMNS %in% names(design$table)))
+})

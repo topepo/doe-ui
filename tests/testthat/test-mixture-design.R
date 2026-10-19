@@ -122,3 +122,95 @@ test_that("create explains what it cannot build", {
     mixture_sld_create(num_factors = 3, num_levels = 2, factor_names = "a")
   })
 })
+
+# ---- Simplex-centroid ---------------------------------------------------------
+
+test_that("the centroid limits are the ones asked for", {
+  expect_equal(mixture_scd_get_limits(), list(num_factors = c(2L, 10L)))
+})
+
+test_that("the centroid ceiling is ours, and the floor is the package's", {
+  # SCD() has no ceiling: it builds 13 factors, 8191 blends, without complaint.
+  expect_equal(nrow(mixexp::SCD(13)), 2^13 - 1)
+  expect_lt(mixture_scd_get_limits()$num_factors[2], 13)
+  # A single factor fails inside the package with an unhelpful message, so the
+  # floor keeps it from ever being called.
+  expect_snapshot(error = TRUE, mixexp::SCD(1))
+})
+
+test_that("every centroid size in range builds every subset once", {
+  # One blend for each non-empty subset of the factors, in equal parts, so
+  # 2^q - 1 in all, each summing to one and none repeated.
+  limits <- mixture_scd_get_limits()
+  for (num_factors in seq(limits$num_factors[1], limits$num_factors[2])) {
+    design <- mixture_scd_create(num_factors)
+    expect_equal(nrow(design$table), 2^num_factors - 1)
+    expect_true(all(abs(rowSums(design$table) - 1) < 1e-9))
+    expect_false(any(duplicated(design$table)))
+    # Equal parts: every blend's nonzero proportions are the same.
+    equal_parts <- apply(design$table, 1, function(x) {
+      length(unique(round(x[x > 0], 9))) == 1
+    })
+    expect_true(all(equal_parts))
+  }
+})
+
+test_that("a centroid design is plain proportions, named as asked", {
+  expect_snapshot(mixture_scd_create(num_factors = 3))
+  design <- mixture_scd_create(
+    num_factors = 3,
+    factor_names = c("Oil", "Water", "Soap")
+  )
+  expect_equal(names(design$table), c("Oil", "Water", "Soap"))
+  expect_true(all(vapply(design$table, is.numeric, logical(1))))
+  # The overall centroid is in there, as a third each, unrounded.
+  expect_true(any(design$table$Oil == 1 / 3))
+  expect_null(attr(design$table, "out.attrs"))
+})
+
+test_that("centroid replications stack complete copies of the design", {
+  single <- mixture_scd_create(num_factors = 4)
+  stacked <- mixture_scd_create(num_factors = 4, replications = 3)
+  expect_equal(nrow(stacked$table), 3 * 15)
+  expect_equal(stacked$table, rbind(single$table, single$table, single$table))
+  expect_snapshot(stacked$title)
+  expect_equal(stacked$notes, single$notes)
+})
+
+test_that("the largest centroid design builds in reasonable time", {
+  limits <- mixture_scd_get_limits()
+  elapsed <- system.time(
+    design <- mixture_scd_create(
+      num_factors = limits$num_factors[2],
+      replications = 2
+    )
+  )[["elapsed"]]
+  expect_equal(nrow(design$table), 2 * 1023)
+  expect_lt(elapsed, 15)
+})
+
+test_that("centroid create explains what it cannot build", {
+  expect_snapshot(error = TRUE, {
+    mixture_scd_create(num_factors = 1)
+    mixture_scd_create(num_factors = 11)
+    mixture_scd_create(num_factors = 2.5)
+    mixture_scd_create(num_factors = NA)
+    mixture_scd_create(num_factors = 3, replications = 0)
+    mixture_scd_create(num_factors = 3, replications = 1.5)
+    mixture_scd_create(num_factors = 3, replications = NA)
+    mixture_scd_create(num_factors = 3, factor_names = "a")
+  })
+})
+
+test_that("the two mixture designs agree where they overlap", {
+  # A {q, 1} lattice is the q pure components, which are also the first q
+  # blends of the centroid design. Different functions, one answer. Compared
+  # after the same sort, so the order each package happens to use is not tested.
+  canonical <- function(x) {
+    x <- unname(as.matrix(x))
+    x[do.call(order, as.data.frame(x)), ]
+  }
+  pure_lattice <- canonical(mixexp::SLD(4, 1))
+  pure_centroid <- canonical(mixture_scd_create(num_factors = 4)$table[1:4, ])
+  expect_equal(pure_centroid, pure_lattice)
+})

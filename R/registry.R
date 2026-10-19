@@ -55,6 +55,13 @@ design_registry <- function() {
       ui = mixture_sld_ui,
       server = mixture_sld_server,
       packages = mixture_sld_get_packages
+    ),
+    simplex_centroid = list(
+      label = "Simplex-Centroid Designs",
+      family = "Mixture Designs",
+      ui = mixture_scd_ui,
+      server = mixture_scd_server,
+      packages = mixture_scd_get_packages
     )
   )
 }
