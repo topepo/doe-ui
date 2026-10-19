@@ -1,9 +1,9 @@
 ---
 name: add-doe-design
-description: Add a new experimental design, or a new design family, to the doe-ui Shiny app. Use when asked to add a design, wire up a new DOE package, extend the design registry, or add a variant of a design that already exists.
+description: Add a new experimental design, or a new design family, to the shiny-doe app. Use when asked to add a design, wire up a new DOE package, extend the design registry, or add a variant of a design that already exists.
 ---
 
-# Adding a design to doe-ui
+# Adding a design to shiny-doe
 
 ## Read these first
 
