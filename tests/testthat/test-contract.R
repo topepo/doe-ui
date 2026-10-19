@@ -156,6 +156,72 @@ test_that("the Taguchi design returns the documented shapes", {
   expect_false(any(ORDER_COLUMNS %in% names(design$table)))
 })
 
+test_that("the space-filling designs return the documented shapes", {
+  for (get_packages in list(
+    spacefilling_opt_get_packages,
+    spacefilling_unif_get_packages,
+    spacefilling_rand_get_packages
+  )) {
+    packages <- get_packages()
+    expect_type(packages, "character")
+    expect_null(names(packages))
+    expect_gt(length(packages), 0)
+  }
+
+  for (limits in list(
+    spacefilling_opt_get_limits(),
+    spacefilling_unif_get_limits(),
+    spacefilling_rand_get_limits()
+  )) {
+    expect_type(limits, "list")
+    expect_true(all(nzchar(names(limits))))
+    for (range in limits) {
+      expect_true(is.integer(range))
+      expect_length(range, 2)
+      expect_lt(range[1], range[2])
+    }
+  }
+
+  # Types: sfd's own ids as values, labels as names.
+  types <- spacefilling_opt_get_types(6)
+  expect_type(types, "character")
+  expect_true(all(unname(types) %in% names(SFD_TYPE_LABELS)))
+  expect_equal(names(types), unname(SFD_TYPE_LABELS[types]))
+  # The other two have nothing to choose, as an empty character, not NULL.
+  for (empty in list(spacefilling_unif_get_types(6), spacefilling_rand_get_types())) {
+    expect_type(empty, "character")
+    expect_length(empty, 0)
+  }
+
+  # Run choices: unnamed doubles, ascending, and every value builds.
+  for (choices in list(
+    spacefilling_opt_get_num_runs_choices(6, "max_min_l1"),
+    spacefilling_unif_get_num_runs_choices(12)
+  )) {
+    expect_type(choices, "double")
+    expect_null(names(choices))
+    expect_false(is.unsorted(choices))
+  }
+  for (value in spacefilling_opt_get_num_runs_choices(6, "max_min_l1")) {
+    expect_s3_class(spacefilling_opt_create(6, value, "max_min_l1"), "doe_design")
+  }
+  # The random design takes any run count in range, so it has no choices helper.
+  expect_false(exists("spacefilling_rand_get_num_runs_choices"))
+
+  for (design in list(
+    spacefilling_opt_create(6, 20, "max_min_l2"),
+    spacefilling_unif_create(6, 20),
+    spacefilling_rand_create(6, 20)
+  )) {
+    expect_named(design, c("table", "title", "notes"))
+    expect_s3_class(design$table, "tbl_df")
+    expect_length(design$title, 1)
+    expect_type(design$notes, "character")
+    expect_false(any(ORDER_COLUMNS %in% names(design$table)))
+    expect_equal(nrow(design$table), 20)
+  }
+})
+
 test_that("the Taguchi design has no types, so it defines no get_types", {
   # One array exists per run count, so there is nothing to choose between. The
   # contract allows a design to omit a helper whose options it does not have.
