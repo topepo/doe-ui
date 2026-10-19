@@ -30,6 +30,8 @@ Shiny sources everything in `R/` automatically, so there is nothing to `source()
 | `R/factorial-module.R` | Its Shiny module |
 | `R/taguchi-design.R` | The two-level Taguchi orthogonal arrays (DoE.base) — pure R, no Shiny |
 | `R/taguchi-module.R` | Its Shiny module |
+| `R/mixture-design.R` | The mixture-design generators — the simplex-lattice (mixexp), pure R, no Shiny |
+| `R/mixture-module.R` | Their Shiny modules |
 | `R/spacefilling-design.R` | The three space-filling generators: optimized hypercubes and uniform designs (sfd), and random hypercubes (DiceDesign) |
 | `R/spacefilling-module.R` | Their Shiny modules |
 | `R/registry.R` | The design registry and the sidebar picker |

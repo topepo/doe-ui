@@ -207,3 +207,129 @@ test_that("Taguchi sits in the screening family beside the factorial", {
   families <- design_families()
   expect_equal(families[["Screening designs"]], c("factorial", "taguchi"))
 })
+
+test_that("the simplex-lattice module returns a design once its inputs are set", {
+  shiny::testServer(mixture_sld_server, args = list(id = "simplex_lattice"), {
+    session$setInputs(
+      num_factors = 3,
+      num_levels = 2,
+      replications = 1,
+      factor_names = ""
+    )
+    design <- session$getReturned()()
+    expect_s3_class(design, "doe_design")
+    expect_equal(names(design$table), LETTERS[1:3])
+    expect_equal(nrow(design$table), 6)
+  })
+})
+
+test_that("the simplex-lattice module passes factor names through", {
+  shiny::testServer(mixture_sld_server, args = list(id = "simplex_lattice"), {
+    session$setInputs(
+      num_factors = 3,
+      num_levels = 3,
+      replications = 1,
+      factor_names = "Oil, Water"
+    )
+    expect_equal(
+      names(session$getReturned()()$table),
+      c("Oil", "Water", "C")
+    )
+  })
+})
+
+test_that("the simplex-lattice module builds at the top of both ranges", {
+  shiny::testServer(mixture_sld_server, args = list(id = "simplex_lattice"), {
+    session$setInputs(
+      num_factors = 10,
+      num_levels = 5,
+      replications = 1,
+      factor_names = ""
+    )
+    expect_equal(nrow(session$getReturned()()$table), 2002)
+  })
+})
+
+test_that("the simplex-lattice module passes replications through", {
+  shiny::testServer(mixture_sld_server, args = list(id = "simplex_lattice"), {
+    session$setInputs(
+      num_factors = 3,
+      num_levels = 2,
+      replications = 3,
+      factor_names = ""
+    )
+    expect_equal(nrow(session$getReturned()()$table), 18)
+  })
+})
+
+test_that("a factor count past the ceiling pauses with a message", {
+  shiny::testServer(mixture_sld_server, args = list(id = "simplex_lattice"), {
+    session$setInputs(
+      num_factors = 11,
+      num_levels = 2,
+      replications = 1,
+      factor_names = ""
+    )
+    expect_error(session$getReturned()(), class = "shiny.silent.error")
+  })
+})
+
+test_that("an unusable levels count pauses rather than failing", {
+  shiny::testServer(mixture_sld_server, args = list(id = "simplex_lattice"), {
+    session$setInputs(
+      num_factors = 3,
+      num_levels = 6,
+      replications = 1,
+      factor_names = ""
+    )
+    expect_error(session$getReturned()(), class = "shiny.silent.error")
+    session$setInputs(num_levels = NA)
+    expect_error(session$getReturned()(), class = "shiny.silent.error")
+  })
+})
+
+test_that("an unusable simplex-lattice factor count pauses rather than failing", {
+  shiny::testServer(mixture_sld_server, args = list(id = "simplex_lattice"), {
+    session$setInputs(
+      num_factors = NA,
+      num_levels = 2,
+      replications = 1,
+      factor_names = ""
+    )
+    expect_error(session$getReturned()(), class = "shiny.silent.error")
+  })
+})
+
+test_that("the simplex-lattice panel opens on its defaults", {
+  html <- as.character(mixture_sld_ui("simplex_lattice"))
+  expect_match(html, sprintf('value="%d"', MIXTURE_SLD_DEFAULT_FACTORS))
+  expect_match(html, sprintf('value="%d"', MIXTURE_SLD_DEFAULT_LEVELS))
+  expect_match(html, 'max="10"')
+  expect_match(html, 'max="5"')
+})
+
+test_that("the app dispatches to the simplex-lattice design", {
+  shiny::testServer(app_server, {
+    session$setInputs(`picker-family_3` = "simplex_lattice", randomize = FALSE)
+    session$setInputs(
+      `simplex_lattice-num_factors` = 3,
+      `simplex_lattice-num_levels` = 2,
+      `simplex_lattice-replications` = 1,
+      `simplex_lattice-factor_names` = ""
+    )
+    expect_equal(selected(), "simplex_lattice")
+    expect_equal(
+      names(current()$table),
+      c("Standard order", "Run order", LETTERS[1:3])
+    )
+    expect_equal(nrow(current()$table), 6)
+    # The panel renders lazily, so a broken module UI only shows up here.
+    expect_false(is.null(output$options))
+  })
+})
+
+test_that("Mixture Designs is its own family, after the screening designs", {
+  families <- design_families()
+  expect_equal(names(families)[3], "Mixture Designs")
+  expect_equal(families[["Mixture Designs"]], "simplex_lattice")
+})

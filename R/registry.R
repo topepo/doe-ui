@@ -48,6 +48,13 @@ design_registry <- function() {
       ui = taguchi_ui,
       server = taguchi_server,
       packages = taguchi_get_packages
+    ),
+    simplex_lattice = list(
+      label = "Simplex-Lattice Designs",
+      family = "Mixture Designs",
+      ui = mixture_sld_ui,
+      server = mixture_sld_server,
+      packages = mixture_sld_get_packages
     )
   )
 }

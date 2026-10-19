@@ -188,7 +188,10 @@ test_that("the space-filling designs return the documented shapes", {
   expect_true(all(unname(types) %in% names(SFD_TYPE_LABELS)))
   expect_equal(names(types), unname(SFD_TYPE_LABELS[types]))
   # The other two have nothing to choose, as an empty character, not NULL.
-  for (empty in list(spacefilling_unif_get_types(6), spacefilling_rand_get_types())) {
+  for (empty in list(
+    spacefilling_unif_get_types(6),
+    spacefilling_rand_get_types()
+  )) {
     expect_type(empty, "character")
     expect_length(empty, 0)
   }
@@ -203,7 +206,10 @@ test_that("the space-filling designs return the documented shapes", {
     expect_false(is.unsorted(choices))
   }
   for (value in spacefilling_opt_get_num_runs_choices(6, "max_min_l1")) {
-    expect_s3_class(spacefilling_opt_create(6, value, "max_min_l1"), "doe_design")
+    expect_s3_class(
+      spacefilling_opt_create(6, value, "max_min_l1"),
+      "doe_design"
+    )
   }
   # The random design takes any run count in range, so it has no choices helper.
   expect_false(exists("spacefilling_rand_get_num_runs_choices"))
@@ -226,4 +232,35 @@ test_that("the Taguchi design has no types, so it defines no get_types", {
   # One array exists per run count, so there is nothing to choose between. The
   # contract allows a design to omit a helper whose options it does not have.
   expect_false(exists("taguchi_get_types"))
+})
+
+test_that("the simplex-lattice design returns the documented shapes", {
+  packages <- mixture_sld_get_packages()
+  expect_type(packages, "character")
+  expect_null(names(packages))
+
+  limits <- mixture_sld_get_limits()
+  expect_named(limits, c("num_factors", "num_levels"))
+  for (range in limits) {
+    expect_true(is.integer(range))
+    expect_length(range, 2)
+    expect_lt(range[1], range[2])
+  }
+
+  # Every size in range builds, which is why there is no choices helper: no
+  # value in range needs to be filtered out.
+  for (num_levels in seq(limits$num_levels[1], limits$num_levels[2])) {
+    expect_s3_class(
+      mixture_sld_create(num_factors = 4, num_levels = num_levels),
+      "doe_design"
+    )
+  }
+  expect_false(exists("mixture_sld_get_num_levels_choices"))
+
+  design <- mixture_sld_create(num_factors = 4, num_levels = 2)
+  expect_named(design, c("table", "title", "notes"))
+  expect_s3_class(design$table, "tbl_df")
+  expect_length(design$title, 1)
+  expect_type(design$notes, "character")
+  expect_false(any(ORDER_COLUMNS %in% names(design$table)))
 })

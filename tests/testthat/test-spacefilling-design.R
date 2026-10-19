@@ -6,7 +6,9 @@
 test_that("every type sfd ships has a label", {
   # The label map is read in both directions, so a type added in a future sfd
   # should fail here rather than reach a dropdown as a bare id.
-  shipped <- unique(unlist(lapply(sfd::sfd_lib, function(lib) unique(lib$type))))
+  shipped <- unique(unlist(lapply(sfd::sfd_lib, function(lib) {
+    unique(lib$type)
+  })))
   expect_setequal(shipped, names(SFD_TYPE_LABELS))
   expect_setequal(c(SFD_LHC_TYPES, SFD_UNIFORM_TYPES), names(SFD_TYPE_LABELS))
 })
@@ -32,7 +34,10 @@ test_that("run choices are read from sfd's library, not computed", {
 
 test_that("the run choices have gaps, which is why they are listed", {
   # Max-Min (L1) at six factors offers four sizes; a span would offer more.
-  expect_equal(spacefilling_opt_get_num_runs_choices(6, "max_min_l1"), c(4, 5, 6, 7))
+  expect_equal(
+    spacefilling_opt_get_num_runs_choices(6, "max_min_l1"),
+    c(4, 5, 6, 7)
+  )
   expect_true(any(diff(spacefilling_unif_get_num_runs_choices(15)) > 1))
 })
 
@@ -62,7 +67,9 @@ test_that("the smallest and largest of every sfd size build", {
     }
   }
   for (num_factors in 2:15) {
-    for (num_runs in range(spacefilling_unif_get_num_runs_choices(num_factors))) {
+    for (num_runs in range(spacefilling_unif_get_num_runs_choices(
+      num_factors
+    ))) {
       design <- spacefilling_unif_create(num_factors, num_runs)
       expect_equal(dim(design$table), c(num_runs, num_factors))
     }
@@ -121,7 +128,11 @@ test_that("sfd designs are deterministic and in sfd's own row order", {
 test_that("a NULL type takes the first one offered", {
   expect_equal(
     spacefilling_opt_create(6, 20, type = NULL),
-    spacefilling_opt_create(6, 20, type = unname(spacefilling_opt_get_types(6)[1]))
+    spacefilling_opt_create(
+      6,
+      20,
+      type = unname(spacefilling_opt_get_types(6)[1])
+    )
   )
 })
 
@@ -137,11 +148,19 @@ test_that("uniform is its own design, offered where the LHC criteria stop", {
 test_that("factor names reach the columns exactly as given", {
   names <- c("Temp (C)", "Pressure", "1st")
   expect_equal(
-    names(spacefilling_opt_create(3, 7, "max_min_l2", factor_names = names)$table),
+    names(
+      spacefilling_opt_create(3, 7, "max_min_l2", factor_names = names)$table
+    ),
     names
   )
-  expect_equal(names(spacefilling_unif_create(3, 7, factor_names = names)$table), names)
-  expect_equal(names(spacefilling_rand_create(3, 7, factor_names = names)$table), names)
+  expect_equal(
+    names(spacefilling_unif_create(3, 7, factor_names = names)$table),
+    names
+  )
+  expect_equal(
+    names(spacefilling_rand_create(3, 7, factor_names = names)$table),
+    names
+  )
 })
 
 test_that("the largest sfd designs build quickly", {
@@ -235,9 +254,15 @@ test_that("the random design has two count limits and no types", {
 
 test_that("the largest random design builds quickly", {
   elapsed <- system.time(
-    design <- spacefilling_rand_create(RANDOM_LHC_MAX_FACTORS, RANDOM_LHC_MAX_RUNS)
+    design <- spacefilling_rand_create(
+      RANDOM_LHC_MAX_FACTORS,
+      RANDOM_LHC_MAX_RUNS
+    )
   )[["elapsed"]]
-  expect_equal(dim(design$table), c(RANDOM_LHC_MAX_RUNS, RANDOM_LHC_MAX_FACTORS))
+  expect_equal(
+    dim(design$table),
+    c(RANDOM_LHC_MAX_RUNS, RANDOM_LHC_MAX_FACTORS)
+  )
   expect_lt(elapsed, 5)
 })
 

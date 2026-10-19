@@ -95,7 +95,11 @@ test_that("replications stack complete copies of the array", {
 
 test_that("every array builds replicated", {
   for (num_runs in taguchi_support$num_runs) {
-    design <- taguchi_create(num_factors = 2, num_runs = num_runs, replications = 2)
+    design <- taguchi_create(
+      num_factors = 2,
+      num_runs = num_runs,
+      replications = 2
+    )
     expect_equal(nrow(design$table), 2 * num_runs)
   }
 })

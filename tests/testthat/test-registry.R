@@ -33,9 +33,10 @@ test_that("the default design is registered", {
 
 test_that("the picker renders one panel per family with the default open", {
   html <- as.character(picker_ui("picker"))
-  expect_equal(length(gregexpr("accordion-item", html)[[1]]), 2)
+  expect_equal(length(gregexpr("accordion-item", html)[[1]]), 3)
   expect_match(html, "Space-Filling Designs")
   expect_match(html, "Screening designs")
+  expect_match(html, "Mixture Designs")
   # The open panel is the one holding the default design.
   expect_match(html, "Screening designs")
 })
@@ -237,7 +238,7 @@ test_that("the uniform module builds without a type", {
 test_that("the picker is styled as a list, and only the picker", {
   html <- as.character(picker_ui("picker"))
   # One class per family radio group, which the stylesheet in R/ui.R targets.
-  expect_equal(length(gregexpr("design-picker", html)[[1]]), 2)
+  expect_equal(length(gregexpr("design-picker", html)[[1]]), 3)
   # The input is still a radio group underneath, which is what keeps one
   # selection per family without an observer per design.
   expect_match(html, 'role="radiogroup"')
