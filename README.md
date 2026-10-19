@@ -1,8 +1,10 @@
 # doe-ui
 
-A Shiny interface to R's experimental design generators. Pick a design, set its options, and download the run table as CSV.
+A Shiny interface to R's experimental design generators. There are families of designs (e.g., two-level factorials, mixtures, etc) and specific designs within each. You can access the interface at [`https://topepo.github.io/doe-ui/`](https://topepo.github.io/doe-ui/) or run it locally. 
 
-## Running
+If you would like to contribute, we have a skill file in `inst,` and you can give an LLM instructions on the R package/function to use, options and their limits, and any other specifications. 
+
+## Running Locally
 
 ```r
 shiny::runApp()
