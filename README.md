@@ -1,6 +1,6 @@
 # shiny-doe
 
-A Shiny interface to R's experimental design generators. There are families of designs (e.g., two-level factorials, mixtures, etc) and specific designs within each. You can access the interface at [`https://topepo.github.io/shiny-shiny-doe/`](https://topepo.github.io/shiny-doe/) or run it locally. 
+A Shiny interface to R's experimental design generators. There are families of designs (e.g., two-level factorials, mixtures, etc) and specific designs within each. You can access the interface at [`https://posit-dev.github.io/shiny-doe/`](https://posit-dev.github.io/shiny-doe/) or run it locally. 
 
 If you would like to contribute, we have a skill file in `inst,` and you can give an LLM instructions on the R package/function to use, options and their limits, and any other specifications. 
 
