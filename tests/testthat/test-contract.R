@@ -265,6 +265,40 @@ test_that("the simplex-lattice design returns the documented shapes", {
   expect_false(any(ORDER_COLUMNS %in% names(design$table)))
 })
 
+test_that("the central composite design returns the documented shapes", {
+  packages <- rsm_ccd_get_packages()
+  expect_type(packages, "character")
+  expect_null(names(packages))
+
+  limits <- rsm_ccd_get_limits()
+  expect_named(limits, c("num_factors", "center"))
+  for (range in limits) {
+    expect_true(is.integer(range))
+    expect_length(range, 2)
+    expect_lt(range[1], range[2])
+  }
+
+  # Types: rsm's own ids as values, labels as names, and every one builds.
+  types <- rsm_ccd_get_types()
+  expect_type(types, "character")
+  expect_true(all(nzchar(names(types))))
+  for (type in types) {
+    expect_s3_class(rsm_ccd_create(3, alpha = type), "doe_design")
+  }
+
+  # The run count is derived, so there is no run choice and no num_runs.
+  expect_false(exists("rsm_ccd_get_num_runs_choices"))
+  expect_false("num_runs" %in% names(formals(rsm_ccd_create)))
+
+  design <- rsm_ccd_create(num_factors = 3)
+  expect_named(design, c("table", "title", "notes"))
+  expect_s3_class(design$table, "tbl_df")
+  expect_length(design$title, 1)
+  expect_type(design$notes, "character")
+  expect_null(names(design$notes))
+  expect_false(any(ORDER_COLUMNS %in% names(design$table)))
+})
+
 test_that("the simplex-centroid design returns the documented shapes", {
   packages <- mixture_scd_get_packages()
   expect_type(packages, "character")

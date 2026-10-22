@@ -10,7 +10,7 @@ If you would like to contribute, we have a skill file in `inst,` and you can giv
 shiny::runApp()
 ```
 
-Needs R 4.4 or later and the packages `bslib`, `DiceDesign`, `DoE.base`, `FrF2`, `reactable`, `sfd`, `shiny` and `tibble`. The app checks for them on startup and names any that are missing — the per-design ones come from each `{design}_get_packages()`, so this list is derived rather than maintained by hand.
+Needs R 4.4 or later and the packages `bslib`, `DiceDesign`, `DoE.base`, `FrF2`, `mixexp`, `reactable`, `rsm`, `sfd`, `shiny` and `tibble`. The app checks for them on startup and names any that are missing — the per-design ones come from each `{design}_get_packages()`, so this list is derived rather than maintained by hand.
 
 ## Tests
 
@@ -36,6 +36,8 @@ Shiny sources everything in `R/` automatically, so there is nothing to `source()
 | `R/mixture-module.R` | Their Shiny modules |
 | `R/spacefilling-design.R` | The three space-filling generators: optimized hypercubes and uniform designs (sfd), and random hypercubes (DiceDesign) |
 | `R/spacefilling-module.R` | Their Shiny modules |
+| `R/rsm-design.R` | The central composite generator (rsm) — pure R, no Shiny |
+| `R/rsm-module.R` | Its Shiny module |
 | `R/registry.R` | The design registry and the sidebar picker |
 | `R/ui.R`, `R/server.R` | The page, and how its pieces update each other |
 

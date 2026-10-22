@@ -384,6 +384,93 @@ test_that("the simplex-centroid panel opens on its defaults", {
   expect_false(grepl("num_levels", html))
 })
 
+test_that("the CCD module returns a design once its inputs are set", {
+  shiny::testServer(rsm_ccd_server, args = list(id = "central_composite"), {
+    session$setInputs(
+      num_factors = 3,
+      center = 2,
+      alpha = "rotatable",
+      replications = 1,
+      factor_names = "Temp, Pressure"
+    )
+    design <- session$getReturned()()
+    expect_s3_class(design, "doe_design")
+    expect_equal(names(design$table), c("Block", "Temp", "Pressure", "C"))
+    expect_equal(nrow(design$table), 8 + 6 + 4)
+  })
+})
+
+test_that("the CCD module passes a custom axial distance and replications", {
+  shiny::testServer(rsm_ccd_server, args = list(id = "central_composite"), {
+    session$setInputs(
+      num_factors = 2,
+      center = 1,
+      alpha = RSM_CCD_CUSTOM_ALPHA,
+      alpha_value = 1.3,
+      replications = 2,
+      factor_names = ""
+    )
+    design <- session$getReturned()()
+    expect_equal(max(abs(as.matrix(design$table[c("A", "B")]))), 1.3)
+    expect_equal(nrow(design$table), 2 * (4 + 4 + 2))
+  })
+})
+
+test_that("unusable CCD counts pause rather than failing", {
+  shiny::testServer(rsm_ccd_server, args = list(id = "central_composite"), {
+    for (bad in list(NA, 1, 9, 2.5)) {
+      session$setInputs(
+        num_factors = bad,
+        center = 4,
+        alpha = "orthogonal",
+        replications = 1,
+        factor_names = ""
+      )
+      expect_error(session$getReturned()(), class = "shiny.silent.error")
+    }
+    for (bad in list(NA, -1, 21, 1.5)) {
+      session$setInputs(num_factors = 3, center = bad)
+      expect_error(session$getReturned()(), class = "shiny.silent.error")
+    }
+  })
+})
+
+test_that("the CCD panel opens on its defaults with every axial choice", {
+  html <- as.character(rsm_ccd_ui("central_composite"))
+  expect_match(html, sprintf('value="%d"', RSM_CCD_DEFAULT_FACTORS))
+  expect_match(html, sprintf('value="%d"', RSM_CCD_DEFAULT_CENTER))
+  for (type in c(rsm_ccd_get_types(), RSM_CCD_CUSTOM_ALPHA)) {
+    expect_match(html, sprintf('<option value="%s"', type))
+  }
+})
+
+test_that("the app dispatches to the central composite design", {
+  shiny::testServer(app_server, {
+    session$setInputs(`picker-family_4` = "central_composite", randomize = FALSE)
+    session$setInputs(
+      `central_composite-num_factors` = 2,
+      `central_composite-center` = 1,
+      `central_composite-alpha` = "orthogonal",
+      `central_composite-replications` = 1,
+      `central_composite-factor_names` = ""
+    )
+    expect_equal(selected(), "central_composite")
+    expect_equal(
+      names(current()$table),
+      c("Standard order", "Run order", "Block", "A", "B")
+    )
+    expect_equal(nrow(current()$table), 10)
+    # The panel renders lazily, so a broken module UI only shows up here.
+    expect_false(is.null(output$options))
+  })
+})
+
+test_that("Response Surface Designs is its own family, last", {
+  families <- design_families()
+  expect_equal(names(families)[4], "Response Surface Designs")
+  expect_equal(families[["Response Surface Designs"]], "central_composite")
+})
+
 test_that("the app dispatches to the simplex-centroid design", {
   shiny::testServer(app_server, {
     session$setInputs(`picker-family_3` = "simplex_centroid", randomize = FALSE)

@@ -62,6 +62,13 @@ design_registry <- function() {
       ui = mixture_scd_ui,
       server = mixture_scd_server,
       packages = mixture_scd_get_packages
+    ),
+    central_composite = list(
+      label = "Central composite",
+      family = "Response Surface Designs",
+      ui = rsm_ccd_ui,
+      server = rsm_ccd_server,
+      packages = rsm_ccd_get_packages
     )
   )
 }
