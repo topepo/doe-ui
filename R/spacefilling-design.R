@@ -19,6 +19,10 @@
 # from two factors up, each element naming the run counts every type offers at
 # that many factors. Scanning all fourteen tables takes about a tenth of a
 # second, which is worth paying once rather than on every keystroke.
+#
+# The require() is explicit so the shinylive build bundles sfd; see
+# inst/adding-designs.md.
+suppressPackageStartupMessages(require(sfd))
 SFD_SUPPORT <- lapply(seq_along(sfd::sfd_lib), function(i) {
   designs <- sfd::sfd_lib[[i]]
   lapply(split(designs$num_points, designs$type), function(x) sort(unique(x)))
@@ -178,6 +182,7 @@ spacefilling_opt_create <- function(
     num_factors
   )
 ) {
+  suppressPackageStartupMessages(require(sfd))
   types <- spacefilling_opt_get_types(num_factors)
   if (is.null(type)) {
     type <- unname(types[1])
@@ -252,6 +257,7 @@ spacefilling_unif_create <- function(
     num_factors
   )
 ) {
+  suppressPackageStartupMessages(require(sfd))
   table <- sfd_create(
     num_factors,
     num_runs,
@@ -313,6 +319,7 @@ spacefilling_rand_create <- function(
     num_factors
   )
 ) {
+  suppressPackageStartupMessages(require(DiceDesign))
   limits <- spacefilling_rand_get_limits()
   stop_unless(
     length(num_factors) == 1 &&

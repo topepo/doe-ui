@@ -32,6 +32,9 @@ taguchi_get_packages <- function() {
 # run counts today, but they are read rather than computed as a span so that
 # the app follows whichever DoE.base version is installed.
 taguchi_support <- local({
+  # Explicit, so the shinylive build bundles DoE.base; see
+  # inst/adding-designs.md.
+  suppressPackageStartupMessages(require(DoE.base))
   catalog <- DoE.base::oacat
   level_columns <- grep("^n[0-9]+$", names(catalog), value = TRUE)
   other_levels <- setdiff(level_columns, "n2")
@@ -179,6 +182,7 @@ taguchi_create <- function(
   replications = 1,
   factor_names = default_factor_names(num_factors)
 ) {
+  suppressPackageStartupMessages(require(DoE.base))
   limits <- taguchi_get_limits()$num_factors
   # Checked before the range comparison below, which would otherwise be NA and
   # fail with "missing value where TRUE/FALSE needed" rather than a message.

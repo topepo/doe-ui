@@ -396,7 +396,8 @@ test_that("the CCD module returns a design once its inputs are set", {
     design <- session$getReturned()()
     expect_s3_class(design, "doe_design")
     expect_equal(names(design$table), c("Block", "Temp", "Pressure", "C"))
-    expect_equal(nrow(design$table), 8 + 6 + 4)
+    # Rotatable is one block, so the two center points are the total.
+    expect_equal(nrow(design$table), 8 + 6 + 2)
   })
 })
 
@@ -412,7 +413,9 @@ test_that("the CCD module passes a custom axial distance and replications", {
     )
     design <- session$getReturned()()
     expect_equal(max(abs(as.matrix(design$table[c("A", "B")]))), 1.3)
-    expect_equal(nrow(design$table), 2 * (4 + 4 + 2))
+    # Cube and axial points doubled, the one center point not.
+    expect_equal(nrow(design$table), 2 * (4 + 4) + 1)
+    expect_equal(unique(design$table$Block), "1")
   })
 })
 

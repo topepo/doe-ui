@@ -21,21 +21,45 @@
        9 2      0     1.41
       10 2      0     0   
 
-# replications add whole cube and axial blocks
+# replications repeat cube and axial points, not center points
 
     Code
-      stacked$notes
+      replicated$notes
     Output
-      [1] "Axial distance 1.414 (orthogonal blocking)."                    
-      [2] "Cube points are in blocks 1, 2 and axial points in blocks 3, 4."
-      [3] "Each block has 1 center point."                                 
+      [1] "Axial distance 1.414 (orthogonal blocking)."                                  
+      [2] "Cube points are in block 1 and axial points in block 2."                      
+      [3] "Cube and axial points are each run 3 times; center points are not replicated."
+      [4] "Each block has 1 center point."                                               
 
 ---
 
     Code
-      stacked$title
+      replicated$title
     Output
-      [1] "Central composite design – 2 factors, 20 runs, 2 replications"
+      [1] "Central composite design – 2 factors, 26 runs, 3 replications"
+
+# only orthogonal blocking is blocked
+
+    Code
+      rsm_ccd_create(num_factors = 2, center = 2, alpha = "rotatable")
+    Output
+      Central composite design – 2 factors, 10 runs
+        Axial distance 1.414 (rotatable).
+        All runs are in a single block.
+        The block has 2 center points.
+      # A tibble: 10 x 3
+         Block     A     B
+         <chr> <dbl> <dbl>
+       1 1     -1    -1   
+       2 1      1    -1   
+       3 1     -1     1   
+       4 1      1     1   
+       5 1      0     0   
+       6 1      0     0   
+       7 1     -1.41  0   
+       8 1      1.41  0   
+       9 1      0    -1.41
+      10 1      0     1.41
 
 # create explains what it cannot build
 

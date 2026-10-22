@@ -14,8 +14,6 @@ spacefilling_opt_ui <- function(
   id,
   num_factors = SPACEFILLING_OPT_DEFAULT_FACTORS
 ) {
-  require(sfd)
-  require(DiceDesign)
   ns <- shiny::NS(id)
   limits <- spacefilling_opt_get_limits()$num_factors
   # Populated here rather than left empty for the server to fill: the

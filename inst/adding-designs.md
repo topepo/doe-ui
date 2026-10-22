@@ -54,6 +54,10 @@ Pure R, no Shiny, so every piece is testable on its own. Implement the contract 
 - A practical ceiling of your own is fine. Declare it in the design's own file, label it as ours rather than the package's, and never put it in `R/design.R`.
 - Validate with `stop_unless()`, `stop_unavailable()` and `stop_out_of_range()` from `R/design.R`. `stop_unavailable()` lists what *is* available, which is the only honest message when the package has gaps. These messages are shown to the experimenter in place of the table, so write them for that reader.
 - Return `new_design(table, title, notes)`. Build the table column by column rather than handing over the package's object: coercion to a tibble does not strip the package's attributes.
+- Call `suppressPackageStartupMessages(require(<pkg>))` for every package in `_get_packages()`, with the bare package name. Put it at the top of `_create()`, ahead of the validation, and at the top of any block that calls the package when the file is sourced, such as `factorial_support` reading `FrF2::catlg`. The deployed app is built with shinylive and runs on webR, and the bundle includes only packages it finds in a static scan of the source code. A `pkg::fn()` call alone is not a reliable signal, so a package used only that way can be left out: the app works locally and fails in the browser.
+  - Write it out literally each time. A helper that takes the package name as a variable hides it from the scan.
+  - `suppressPackageStartupMessages()` keeps "Loading required package" out of the console and out of snapshots, where it would otherwise appear only when the test happens to be the first to load the package.
+  - Keep calling functions as `pkg::fn()` everywhere else; the `require()` is there for the bundler, not as the way to reach the package.
 
 ## 4. Write the module — `R/<name>-module.R`
 
@@ -79,6 +83,7 @@ In this order:
 4. Time the largest size you offer, and assert it in a test if anything about it is iterative.
 5. Boot the app and select the design. A broken module panel does **not** show up at startup, because `output$options` renders it lazily — only selecting it will reveal the error.
 6. Open the design, switch to another, and switch back. This is what catches empty dropdowns.
+7. Check that every package from `_get_packages()` has an explicit `suppressPackageStartupMessages(require(<pkg>))` in the design's `_create()`. Nothing local will catch a missing one; only the shinylive build will.
 
 ## Traps, with the case that produced each
 

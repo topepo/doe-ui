@@ -83,13 +83,42 @@ test_that("a design is a plain table, named as asked", {
   expect_false(any(c("run.order", "std.order") %in% names(design$table)))
 })
 
-test_that("replications add whole cube and axial blocks", {
+test_that("replications repeat cube and axial points, not center points", {
   single <- rsm_ccd_create(num_factors = 2, center = 1)
-  stacked <- rsm_ccd_create(num_factors = 2, center = 1, replications = 2)
-  expect_equal(nrow(stacked$table), 2 * nrow(single$table))
-  expect_equal(sort(unique(stacked$table$Block)), as.character(1:4))
-  expect_snapshot(stacked$notes)
-  expect_snapshot(stacked$title)
+  replicated <- rsm_ccd_create(num_factors = 2, center = 1, replications = 3)
+  count <- function(design) {
+    nonzero <- rowSums(as.matrix(design$table[c("A", "B")]) != 0)
+    table(design$table$Block, nonzero)
+  }
+  # Cube (2 nonzero) and axial (1 nonzero) points triple; centers (0) do not.
+  expect_equal(count(replicated)[, "2"], 3 * count(single)[, "2"])
+  expect_equal(count(replicated)[, "1"], 3 * count(single)[, "1"])
+  expect_equal(count(replicated)[, "0"], count(single)[, "0"])
+  # Still one cube block and one axial block.
+  expect_equal(sort(unique(replicated$table$Block)), c("1", "2"))
+  expect_snapshot(replicated$notes)
+  expect_snapshot(replicated$title)
+})
+
+test_that("only orthogonal blocking is blocked", {
+  blocked <- rsm_ccd_create(num_factors = 3, center = 2, alpha = "orthogonal")
+  expect_equal(sort(unique(blocked$table$Block)), c("1", "2"))
+  # Center points per block, so four in all.
+  expect_equal(nrow(blocked$table), 8 + 6 + 2 * 2)
+
+  for (alpha in list("rotatable", "spherical", "faces", 1.3)) {
+    design <- rsm_ccd_create(num_factors = 3, center = 2, alpha = alpha)
+    label <- format(alpha)
+    # Same columns either way, with every run in block 1.
+    expect_equal(names(design$table), names(blocked$table), label = label)
+    expect_equal(unique(design$table$Block), "1", label = label)
+    # The center count is the total in the one block.
+    centers <- rowSums(as.matrix(design$table[LETTERS[1:3]]) != 0) == 0
+    expect_equal(sum(centers), 2, label = label)
+    expect_equal(nrow(design$table), 8 + 6 + 2, label = label)
+    expect_match(design$notes[2], "single block", label = label)
+  }
+  expect_snapshot(rsm_ccd_create(num_factors = 2, center = 2, alpha = "rotatable"))
 })
 
 test_that("zero center points is allowed", {
@@ -107,7 +136,7 @@ test_that("the largest design builds quickly", {
       replications = 3
     )
   )[["elapsed"]]
-  expect_equal(nrow(design$table), 3 * (256 + 16 + 2 * 20))
+  expect_equal(nrow(design$table), 3 * (256 + 16) + 2 * 20)
   expect_lt(elapsed, 5)
 })
 

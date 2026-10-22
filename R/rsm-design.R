@@ -18,8 +18,13 @@
 # ---- Central composite designs (rsm) -----------------------------------------
 #
 # A CCD is a two-level factorial "cube" plus axial "star" points at +/- alpha
-# on each factor axis, plus center points. rsm builds it as blocked: the cube
-# and the axial points are separate blocks, each with its own center points.
+# on each factor axis, plus center points.
+#
+# Only the orthogonal-blocking axial distance is blocked: the cube and the axial
+# points are separate blocks, each with its own center points, since that is
+# what the distance is chosen for. Every other axial distance puts all the runs
+# in one block. The Block column is there either way, so the table has the same
+# shape whichever is chosen.
 
 # Returns: an unnamed character vector of package names.
 rsm_ccd_get_packages <- function() {
@@ -90,11 +95,12 @@ rsm_ccd_block_note <- function(table, factor_names) {
 #
 #   num_factors  within rsm_ccd_get_limits()$num_factors
 #   center       center points in each block, within
-#                rsm_ccd_get_limits()$center
+#                rsm_ccd_get_limits()$center. With one block, that is the total
 #   alpha        axial distance: an id from rsm_ccd_get_types(), or a single
 #                positive number
-#   replications times the whole design is carried out; each replicate gets
-#                its own cube and axial blocks (rsm's bbreps)
+#   replications times each cube and axial point is carried out, within its
+#                own block. Center points are not replicated: rsm's wbreps,
+#                not bbreps, which would repeat whole blocks centers and all
 #   factor_names column names, one per factor
 #
 # center and alpha default to rsm's own defaults.
@@ -105,6 +111,8 @@ rsm_ccd_create <- function(
   replications = 1,
   factor_names = default_factor_names(num_factors)
 ) {
+  # Explicit, so the shinylive build bundles rsm; see inst/adding-designs.md.
+  suppressPackageStartupMessages(require(rsm))
   limits <- rsm_ccd_get_limits()
   # Checked before the range comparison below, which would otherwise be NA and
   # fail with "missing value where TRUE/FALSE needed" rather than a message.
@@ -156,12 +164,18 @@ rsm_ccd_create <- function(
     "\"Block\" is reserved for the block column; rename that factor."
   )
 
+  blocked <- identical(alpha, "orthogonal")
+  # oneblock = TRUE pools the cube's and the axial portion's center points, so
+  # they all go with the cube portion and the block holds `center` of them.
+  # The split would matter only to the orthogonal distance, which is never
+  # built as one block.
   design <- rsm::ccd(
     basis = num_factors,
-    n0 = center,
+    n0 = if (blocked) center else c(center, 0),
     alpha = alpha,
-    bbreps = replications,
-    randomize = FALSE
+    wbreps = replications,
+    randomize = FALSE,
+    oneblock = !blocked
   )
 
   # Rebuilt column by column rather than handed over: rsm's coded.data carries
@@ -174,10 +188,12 @@ rsm_ccd_create <- function(
   # leaves nothing describing a factor by the wrong label.
   #
   # Block keeps rsm's labels as character, not numbers: they are labels.
+  # oneblock drops rsm's Block column, so a single block is labelled here.
   raw <- as.data.frame(design)
   rsm_names <- attr(design, "rsdes")$primary
+  block <- if (blocked) as.character(raw$Block) else rep("1", nrow(raw))
   columns <- c(
-    list(Block = as.character(raw$Block)),
+    list(Block = block),
     stats::setNames(lapply(rsm_names, function(x) as.numeric(raw[[x]])), factor_names)
   )
   table <- tibble::as_tibble(columns)
@@ -204,8 +220,23 @@ rsm_ccd_create <- function(
         format(signif(alpha_value, 4)),
         tolower(alpha_label)
       ),
-      rsm_ccd_block_note(table, factor_names),
-      sprintf("Each block has %d center point%s.", center, if (center == 1) "" else "s")
+      if (blocked) {
+        rsm_ccd_block_note(table, factor_names)
+      } else {
+        "All runs are in a single block."
+      },
+      if (replications > 1) {
+        sprintf(
+          "Cube and axial points are each run %d times; center points are not replicated.",
+          replications
+        )
+      },
+      sprintf(
+        "%s %d center point%s.",
+        if (blocked) "Each block has" else "The block has",
+        center,
+        if (center == 1) "" else "s"
+      )
     )
   )
 }

@@ -131,7 +131,7 @@ mixture_sld_create <- function(
   replications = 1,
   factor_names = default_factor_names(num_factors)
 ) {
-  require(mixexp)
+  suppressPackageStartupMessages(require(mixexp))
   limits <- mixture_sld_get_limits()
   mixture_check_num_factors(num_factors, limits$num_factors)
   stop_unless(
@@ -212,7 +212,7 @@ mixture_scd_create <- function(
   replications = 1,
   factor_names = default_factor_names(num_factors)
 ) {
-  require(mixexp)
+  suppressPackageStartupMessages(require(mixexp))
   mixture_check_num_factors(
     num_factors,
     mixture_scd_get_limits()$num_factors

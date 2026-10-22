@@ -37,6 +37,8 @@ FACTORIAL_MAX_RUNS <- 256L
 # second copy of its contents written out here. Computed once, when Shiny
 # sources this file.
 factorial_support <- local({
+  # Explicit, so the shinylive build bundles FrF2; see inst/adding-designs.md.
+  suppressPackageStartupMessages(require(FrF2))
   num_factors <- vapply(FrF2::catlg, function(e) e$nfac, numeric(1))
   num_runs <- vapply(FrF2::catlg, function(e) e$nruns, numeric(1))
   keep <- num_runs <= FACTORIAL_MAX_RUNS
@@ -261,6 +263,8 @@ factorial_create <- function(
   replications = 1,
   factor_names = default_factor_names(num_factors)
 ) {
+  suppressPackageStartupMessages(require(DoE.base))
+  suppressPackageStartupMessages(require(FrF2))
   # Checked before the range comparison below, which would otherwise be NA and
   # fail with "missing value where TRUE/FALSE needed" rather than a message.
   stop_unless(

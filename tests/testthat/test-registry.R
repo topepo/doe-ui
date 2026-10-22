@@ -27,6 +27,28 @@ test_that("every registry entry has the fields the app reads", {
   }
 })
 
+test_that("every design package has a literal require() for the bundler", {
+  # shinylive bundles only the packages it finds in a static scan of the
+  # source, so each one needs an explicit require(). Nothing else run locally
+  # would notice one going missing.
+  source_text <- paste(
+    unlist(lapply(
+      list.files(file.path("..", "..", "R"), "\\.R$", full.names = TRUE),
+      readLines
+    )),
+    collapse = "\n"
+  )
+  packages <- unique(unlist(lapply(design_registry(), function(d) d$packages())))
+  for (pkg in packages) {
+    expect_match(
+      source_text,
+      sprintf("suppressPackageStartupMessages(require(%s))", pkg),
+      fixed = TRUE,
+      label = pkg
+    )
+  }
+})
+
 test_that("the default design is registered", {
   expect_true(DEFAULT_DESIGN %in% names(design_registry()))
 })
